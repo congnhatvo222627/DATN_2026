@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environment (rat nang, khong day len GitHub)
+.venv/
+venv/
+env/
+
+# Output va anh debug tu dong sinh ra (chay lai pipeline se tao lai)
+data/output/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

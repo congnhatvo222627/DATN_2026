@@ -1,0 +1,27 @@
+{
+  "half_size_scale": 1.3,
+  "output_size": 0,
+  "refine": {
+    "enabled": true,
+    "preprocess": {
+      "use_clahe": true,
+      "clahe_clip_limit": 5.54,
+      "clahe_tile_grid_size": 15,
+      "use_gaussian": true,
+      "gaussian_kernel": 18
+    },
+    "canny": {
+      "threshold1": 171,
+      "threshold2": 105
+    },
+    "hough": {
+      "dp": 1.96,
+      "param1": 110.01,
+      "param2": 59.56,
+      "minDist": 182.42,
+      "min_radius_scale": 0.65,
+      "max_radius_scale": 1.37,
+      "max_center_shift_scale": 0.48
+    }
+  }
+}
