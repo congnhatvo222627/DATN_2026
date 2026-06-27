@@ -11,12 +11,16 @@ ROI_DIR = DATA_DIR / "roi"
 OUTPUT_DIR = DATA_DIR / "output"
 PRESET_DIR = BASE_DIR / "presets"
 TAB_EDGE_YOLO_MODEL_PATH = BASE_DIR / "best.pt"
+LOGO_PATH = BASE_DIR / "Logo_Đại_học_Bách_Khoa_Hà_Nội.png"
+
+APP_TITLE = "Hệ thống nhận diện tâm và góc xoay stator"
 
 HOUGH_PRESET_PATH = PRESET_DIR / "hough_preset.json"
 ROI_PRESET_PATH = PRESET_DIR / "roi_preset.json"
 TAB_EDGE_PRESET_PATH = PRESET_DIR / "tab_edge_preset.json"
 RADIAL_PRESET_PATH = PRESET_DIR / "radial_preset.json"
 RADIAL_SIGNATURE_PRESET_PATH = PRESET_DIR / "radial_signature_preset.json"
+CALIBRATION_PRESET_PATH = PRESET_DIR / "calibration_preset.json"
 TEMPLATE_DATA_PATH = PRESET_DIR / "template_data.json"
 TEMPLATE_ROI_PATH = PRESET_DIR / "template_roi.png"
 
@@ -121,6 +125,13 @@ DEFAULT_TAB_EDGE_PARAMS = {
         "aperture_size": 3,
         "l2_gradient": False,
     },
+    "radius_filter": {
+        "enabled": True,
+        "r_min_factor": 1.0,
+        "r_max_factor": 1.3,
+        "inner_margin_px": 0.0,
+        "outer_margin_px": 0.0,
+    },
     "contour_filter": {
         "min_area": 24,
         "min_area_ratio": 0.0015,
@@ -143,7 +154,9 @@ DEFAULT_TAB_EDGE_PARAMS = {
 DEFAULT_RADIAL_PARAMS = {
     "source_mode": "closed_edges",
     "use_radius_band": True,
-    "inner_radius_scale": 1.03,
+    # Band bat dau ngay sat trong ban kinh Hough de bat duoc mep tai nam hoi
+    # thut vao than tron, dong thoi van quet het phan tai nho ra ngoai.
+    "inner_radius_scale": 0.99,
     "outer_radius_scale": 1.34,
     "use_source_dilate": True,
     "source_dilate_kernel": 3,
@@ -151,13 +164,17 @@ DEFAULT_RADIAL_PARAMS = {
     "num_angles": 360,
     "ray_step_px": 1.0,
     "ray_thickness": 2,
-    "min_valid_radius_scale": 1.0,
+    # Cho phep do bias tia hoi ngan hon R (0.9) de khong loai nham mep tai sat than.
+    "min_valid_radius_scale": 0.9,
     "floor_to_radius": True,
-    "reject_outliers": True,
+    # Tat reject_outliers: dinh tai chinh la cac "outlier" radial sac net, neu loai
+    # se lam mon bien do tai - dac trung chinh de so khop goc. Nhieu da duoc YOLO
+    # khoanh vung + smoothing xu ly. (Xem tinh chinh tren 18 anh test trong AGENTS.)
+    "reject_outliers": False,
     "outlier_window": 11,
     "outlier_max_delta": 16.0,
     "interpolate_missing": True,
-    "max_gap_to_interpolate": 10,
+    "max_gap_to_interpolate": 18,
     "smooth_signature": True,
     "smooth_window": 7,
     "scale_normalize": True,

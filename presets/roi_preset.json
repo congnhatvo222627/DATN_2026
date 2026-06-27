@@ -8,23 +8,23 @@
     },
     "preprocess": {
       "use_clahe": true,
-      "clahe_clip_limit": 6.39,
-      "clahe_tile_grid_size": 9,
+      "clahe_clip_limit": 6.12,
+      "clahe_tile_grid_size": 4,
       "use_gaussian": true,
-      "gaussian_kernel": 15
+      "gaussian_kernel": 13
     },
     "canny": {
-      "threshold1": 156,
-      "threshold2": 105
+      "threshold1": 39,
+      "threshold2": 22
     },
     "hough": {
-      "dp": 2.34,
-      "param1": 173.63,
-      "param2": 65.87,
-      "minDist": 210.8,
-      "min_radius_scale": 0.75,
-      "max_radius_scale": 1.56,
-      "max_center_shift_scale": 0.61
+      "dp": 2.22,
+      "param1": 240.53,
+      "param2": 82.91,
+      "minDist": 221.53,
+      "min_radius_scale": 0.73,
+      "max_radius_scale": 1.57,
+      "max_center_shift_scale": 0.6
     }
   }
 }

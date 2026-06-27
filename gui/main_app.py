@@ -3,6 +3,9 @@
 import tkinter as tk
 from tkinter import ttk
 
+from PIL import Image, ImageTk
+
+from src.config import APP_TITLE, LOGO_PATH
 from src.io_utils import ensure_project_dirs
 from src.preset_store import ensure_default_presets
 
@@ -23,9 +26,10 @@ class StatorVisionApp:
         ensure_project_dirs()
         ensure_default_presets()
 
-        root.title("detect_stator - Step Debug GUI")
+        root.title(APP_TITLE)
         root.geometry("1680x980")
         root.minsize(1320, 840)
+        self._set_app_icon(root)
 
         notebook = ttk.Notebook(root)
         notebook.pack(fill="both", expand=True)
@@ -45,3 +49,13 @@ class StatorVisionApp:
         notebook.add(self.template_panel, text="5. Template 0 degree")
         notebook.add(self.matching_panel, text="6. Match MSE")
         notebook.add(self.full_pipeline_panel, text="7. Full Pipeline")
+
+    def _set_app_icon(self, root):
+        """Dat logo Bach Khoa lam icon cua so (thay icon chiec la mac dinh)."""
+        try:
+            image = Image.open(LOGO_PATH)
+            self._app_icon = ImageTk.PhotoImage(image)
+            root.iconphoto(True, self._app_icon)
+        except Exception:
+            # Khong co logo cung khong sao, giu icon mac dinh.
+            pass

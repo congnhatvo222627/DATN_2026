@@ -83,6 +83,12 @@ Tai lieu nay mo ta GUI moi cho `detect_stator`, tap trung vao kha nang debug tun
 - Hien day du chuoi debug:
   `roi_gray`, `roi_preprocessed`, `canny_edges`, `radius_mask`, `tab_edges_raw`, `tab_edges_clean`, `debug_overlay`.
 - Cac tham so loc radius va connected component phai chinh truc tiep tren panel.
+- Nhom `Radius` can co it nhat:
+  - `use_radius_band`
+  - `r_min_factor`
+  - `r_max_factor`
+- Trong nhanh YOLO-guided, cac crop ROI cho nhom tai nho nen giu kich thuoc vuong dong nhat de khong bo sot tai o sat bien.
+- Annulus theo `r_body` phai duoc ap ngay trong nhanh YOLO-guided de cat bot bien nam trong long va bien nam qua xa than truoc khi tao `outer profile`.
 
 ### RadialStepPanel
 

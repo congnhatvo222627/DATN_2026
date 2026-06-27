@@ -7,15 +7,17 @@
   "source_dilate_kernel": 3,
   "source_dilate_iter": 1,
   "num_angles": 360,
-  "ray_step_px": 1.08,
+  "ray_step_px": 1.0,
   "ray_thickness": 2,
   "min_valid_radius_scale": 0.9,
   "floor_to_radius": true,
   "reject_outliers": false,
-  "outlier_window": 14,
-  "outlier_max_delta": 18.01,
+  "outlier_window": 11,
+  "outlier_max_delta": 16.0,
   "interpolate_missing": true,
   "max_gap_to_interpolate": 18,
   "smooth_signature": true,
-  "smooth_window": 7
+  "smooth_window": 7,
+  "scale_normalize": true,
+  "invert_angle": false
 }

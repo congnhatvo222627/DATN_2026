@@ -34,6 +34,20 @@ def preprocess_roi_for_tab_edges_local(roi, params):
     return _shared_preprocess_roi_for_tab_edges(roi, params)
 
 
+def _get_radius_annulus_bounds(radius, params):
+    """Resolve the active annulus bounds around the stator body radius."""
+    radius_cfg = params.get("radius_filter", {})
+    if not radius_cfg.get("enabled", True):
+        return False, 0.0, float("inf")
+    r_inner = float(radius) * float(radius_cfg.get("r_min_factor", 1.0)) + float(radius_cfg.get("inner_margin_px", 0))
+    r_outer = float(radius) * float(radius_cfg.get("r_max_factor", 1.3)) + float(radius_cfg.get("outer_margin_px", 0))
+    if r_outer < r_inner:
+        r_inner, r_outer = r_outer, r_inner
+    r_inner = max(0.0, r_inner)
+    r_outer = max(r_inner + 1.0, r_outer)
+    return True, r_inner, r_outer
+
+
 def build_canny_edges(preprocessed, params):
     """Build Canny edges from a preprocessed grayscale image."""
     canny_cfg = params.get("canny", {})
@@ -48,9 +62,9 @@ def build_canny_edges(preprocessed, params):
 
 def build_radius_mask(shape, center, radius, params):
     """Build a binary annulus mask for the legacy tab-edge pipeline."""
-    radius_cfg = params.get("radius_filter", {})
-    r_inner = float(radius) * float(radius_cfg.get("r_min_factor", 1.0)) + float(radius_cfg.get("inner_margin_px", 0))
-    r_outer = float(radius) * float(radius_cfg.get("r_max_factor", 1.35)) + float(radius_cfg.get("outer_margin_px", 8))
+    enabled, r_inner, r_outer = _get_radius_annulus_bounds(radius, params)
+    if not enabled:
+        return np.ones(shape[:2], dtype=np.uint8) * 255
     yy, xx = np.indices(shape[:2])
     rho = np.sqrt((xx - float(center[0])) ** 2 + (yy - float(center[1])) ** 2)
     return np.where((rho >= r_inner) & (rho <= r_outer), 255, 0).astype(np.uint8)
@@ -99,16 +113,15 @@ def make_tab_edge_debug_overlay(roi, center, radius, tab_edges_clean, params):
         overlay = cv2.cvtColor(roi, cv2.COLOR_GRAY2BGR)
     else:
         overlay = roi.copy()
-    radius_cfg = params.get("radius_filter", {})
-    r_inner = int(round(radius * float(radius_cfg.get("r_min_factor", 1.0)) + float(radius_cfg.get("inner_margin_px", 0))))
-    r_outer = int(round(radius * float(radius_cfg.get("r_max_factor", 1.35)) + float(radius_cfg.get("outer_margin_px", 8))))
+    enabled, inner_radius, outer_radius = _get_radius_annulus_bounds(radius, params)
     edges_colored = np.zeros_like(overlay)
     edges_colored[tab_edges_clean > 0] = (255, 255, 255)
     overlay = cv2.addWeighted(overlay, 0.7, edges_colored, 1.0, 0)
     cxy = (int(round(center[0])), int(round(center[1])))
     cv2.circle(overlay, cxy, int(round(radius)), (0, 255, 0), 1, cv2.LINE_AA)
-    cv2.circle(overlay, cxy, r_inner, (0, 165, 255), 1, cv2.LINE_AA)
-    cv2.circle(overlay, cxy, r_outer, (255, 0, 255), 1, cv2.LINE_AA)
+    if enabled:
+        cv2.circle(overlay, cxy, int(round(inner_radius)), (0, 165, 255), 1, cv2.LINE_AA)
+        cv2.circle(overlay, cxy, int(round(outer_radius)), (255, 0, 255), 1, cv2.LINE_AA)
     cv2.drawMarker(overlay, cxy, (0, 0, 255), cv2.MARKER_CROSS, 12, 2)
     return overlay
 
@@ -251,7 +264,7 @@ def build_outer_profile_contours(edge_points, center_x, center_y, params):
     return segments
 
 
-def _compute_tab_edge_points_in_roi(detection, preprocessed, center, crop_x1, crop_y1, params):
+def _compute_tab_edge_points_in_roi(detection, preprocessed, center, crop_x1, crop_y1, params, radius):
     """Filter crop contours and build the outer tab-edge profile in ROI coordinates."""
     closed = preprocessed["closed"]
     contours = extract_tab_edge_contours(closed)
@@ -268,6 +281,7 @@ def _compute_tab_edge_points_in_roi(detection, preprocessed, center, crop_x1, cr
     detection_center_y = (float(detection["y1"]) + float(detection["y2"])) / 2.0
     detection_center_dist = math.hypot(detection_center_x - center_x, detection_center_y - center_y)
     min_keep_distance = detection_center_dist * float(contour_cfg.get("min_keep_distance_ratio", 0.88))
+    annulus_enabled, annulus_inner, annulus_outer = _get_radius_annulus_bounds(radius, params)
 
     filtered_contours = []
     outermost_point = None
@@ -290,6 +304,14 @@ def _compute_tab_edge_points_in_roi(detection, preprocessed, center, crop_x1, cr
         dx = contour_points[:, 0] - center_x
         dy = contour_points[:, 1] - center_y
         distances = np.sqrt((dx * dx) + (dy * dy))
+        if annulus_enabled:
+            keep_mask = (distances >= annulus_inner) & (distances <= annulus_outer)
+            if not np.any(keep_mask):
+                continue
+            contour_points = contour_points[keep_mask]
+            distances = distances[keep_mask]
+            if len(contour_points) < 2:
+                continue
         contour_max_dist = float(np.max(distances)) if len(distances) else 0.0
         if contour_max_dist < min_keep_distance:
             continue
@@ -398,6 +420,116 @@ def _draw_boxes_on_roi(roi, detections):
     return output
 
 
+def _clip_detection_box(detection, width, height):
+    """Clamp one YOLO box to the ROI bounds and return basic geometry."""
+    x1 = max(0, int(round(float(detection["x1"]))))
+    y1 = max(0, int(round(float(detection["y1"]))))
+    x2 = min(width, int(round(float(detection["x2"]))))
+    y2 = min(height, int(round(float(detection["y2"]))))
+    if x2 <= x1 or y2 <= y1:
+        return None
+    box_w = x2 - x1
+    box_h = y2 - y1
+    return {
+        "x1": x1,
+        "y1": y1,
+        "x2": x2,
+        "y2": y2,
+        "width": box_w,
+        "height": box_h,
+        "center_x": (x1 + x2) / 2.0,
+        "center_y": (y1 + y2) / 2.0,
+        "aspect_ratio": float(max(box_w, box_h)) / float(max(1, min(box_w, box_h))),
+    }
+
+
+def _square_crop_bounds(center_x, center_y, side_len, width, height):
+    """Build a fixed-size square crop and shift it inward when it touches an edge."""
+    side_len = max(1, min(int(round(float(side_len))), int(width), int(height)))
+    half = side_len / 2.0
+    x1 = int(round(float(center_x) - half))
+    y1 = int(round(float(center_y) - half))
+    x2 = x1 + side_len
+    y2 = y1 + side_len
+
+    if x1 < 0:
+        x2 -= x1
+        x1 = 0
+    if y1 < 0:
+        y2 -= y1
+        y1 = 0
+    if x2 > width:
+        x1 -= x2 - width
+        x2 = width
+    if y2 > height:
+        y1 -= y2 - height
+        y2 = height
+
+    x1 = max(0, x1)
+    y1 = max(0, y1)
+    x2 = min(width, x2)
+    y2 = min(height, y2)
+    return x1, y1, x2, y2
+
+
+def _build_yolo_crop_windows(detections, roi_shape, padding_ratio, padding_min_px):
+    """Create stable crop windows for YOLO detections.
+
+    Cac detection gan vuong (4 tai nho) duoc nang len cung mot ROI vuong chung
+    de tranh tinh trang mot tai bi crop thieu chi vi box YOLO nho hon cac tai con
+    lai. Detection rat dai/thon van duoc giu side rieng de tranh phinh qua muc.
+    """
+    height, width = roi_shape[:2]
+    crop_info = []
+    for detection in detections:
+        clipped = _clip_detection_box(detection, width, height)
+        if clipped is None:
+            continue
+        pad_x = max(padding_min_px, int(round(clipped["width"] * padding_ratio)))
+        pad_y = max(padding_min_px, int(round(clipped["height"] * padding_ratio)))
+        square_side = max(clipped["width"] + (2 * pad_x), clipped["height"] + (2 * pad_y))
+        crop_info.append(
+            {
+                "detection": detection,
+                "clipped": clipped,
+                "square_side": square_side,
+            }
+        )
+
+    square_like = [
+        item["square_side"]
+        for item in crop_info
+        if item["clipped"]["aspect_ratio"] <= 1.45
+    ]
+    common_square_side = max(square_like) if square_like else 0
+
+    prepared = []
+    for item in crop_info:
+        clipped = item["clipped"]
+        use_side = item["square_side"]
+        if common_square_side > 0 and clipped["aspect_ratio"] <= 1.45:
+            use_side = max(use_side, common_square_side)
+        crop_x1, crop_y1, crop_x2, crop_y2 = _square_crop_bounds(
+            clipped["center_x"],
+            clipped["center_y"],
+            use_side,
+            width,
+            height,
+        )
+        prepared.append(
+            {
+                "detection": item["detection"],
+                "crop_x1": crop_x1,
+                "crop_y1": crop_y1,
+                "crop_x2": crop_x2,
+                "crop_y2": crop_y2,
+                "crop_side": max(crop_x2 - crop_x1, crop_y2 - crop_y1),
+                "aspect_ratio": clipped["aspect_ratio"],
+            }
+        )
+    return prepared, int(round(common_square_side)) if common_square_side > 0 else 0
+
+
 def _merge_crop_into_canvas(canvas, crop, x1, y1):
     """Paste a crop into a grayscale debug canvas using max-combine."""
     y2 = min(canvas.shape[0], y1 + crop.shape[0])
@@ -430,7 +562,7 @@ def _draw_center_marker(image, center):
     cv2.circle(image, cxy, 2, (255, 255, 255), -1, cv2.LINE_AA)
 
 
-def _make_yolo_debug_overlay(roi, center, radius, contour_list):
+def _make_yolo_debug_overlay(roi, center, radius, contour_list, params):
     """Render a dark debug view that highlights only tab-edge contours."""
     height, width = roi.shape[:2]
     overlay = np.zeros((height, width, 3), dtype=np.uint8)
@@ -440,6 +572,10 @@ def _make_yolo_debug_overlay(roi, center, radius, contour_list):
     overlay[contour_mask > 0] = (255, 255, 255)
     cxy = (int(round(center[0])), int(round(center[1])))
     cv2.circle(overlay, cxy, int(round(radius)), (80, 80, 80), 1, cv2.LINE_AA)
+    annulus_enabled, annulus_inner, annulus_outer = _get_radius_annulus_bounds(radius, params)
+    if annulus_enabled:
+        cv2.circle(overlay, cxy, int(round(annulus_inner)), (0, 165, 255), 1, cv2.LINE_AA)
+        cv2.circle(overlay, cxy, int(round(annulus_outer)), (255, 0, 255), 1, cv2.LINE_AA)
     _draw_center_marker(overlay, center)
     return overlay
 
@@ -450,6 +586,7 @@ def _run_yolo_tab_edge_pipeline(roi, center, radius, params):
     roi_preprocessed = np.zeros_like(roi_gray)
     canny_edges = np.zeros_like(roi_gray)
     closed_edges = np.zeros_like(roi_gray)
+    radius_mask = build_radius_mask(roi_gray.shape, center, radius, params)
     logs = ["Tab edge mode: YOLO-guided contour filtering"]
 
     try:
@@ -460,6 +597,9 @@ def _run_yolo_tab_edge_pipeline(roi, center, radius, params):
     yolo_cfg = params.get("yolo", {})
     logs.append("Model YOLO: {}".format(Path(str(yolo_cfg.get("model_path", TAB_EDGE_YOLO_MODEL_PATH))).name))
     logs.append("So box YOLO: {}".format(len(detections)))
+    annulus_enabled, annulus_inner, annulus_outer = _get_radius_annulus_bounds(radius, params)
+    if annulus_enabled:
+        logs.append("Radius annulus: {:.2f}r -> {:.2f}r".format(annulus_inner / max(1e-6, float(radius)), annulus_outer / max(1e-6, float(radius))))
     yolo_boxes = _draw_boxes_on_roi(roi, detections)
     if not detections:
         return {
@@ -476,31 +616,31 @@ def _run_yolo_tab_edge_pipeline(roi, center, radius, params):
     height, width = roi.shape[:2]
     padding_ratio = max(0.0, float(yolo_cfg.get("box_padding_ratio", 0.10)))
     padding_min_px = max(0, int(round(float(yolo_cfg.get("box_padding_min_px", 12)))))
+    crop_windows, common_square_side = _build_yolo_crop_windows(detections, roi.shape, padding_ratio, padding_min_px)
+    if common_square_side > 0:
+        logs.append("YOLO crop vuong chung cho nhom tai nho: {} px".format(common_square_side))
 
-    for detection in detections:
-        x1 = max(0, int(detection["x1"]))
-        y1 = max(0, int(detection["y1"]))
-        x2 = min(width, int(detection["x2"]))
-        y2 = min(height, int(detection["y2"]))
-        if x2 <= x1 or y2 <= y1:
-            continue
-
-        pad_x = max(padding_min_px, int(round((x2 - x1) * padding_ratio)))
-        pad_y = max(padding_min_px, int(round((y2 - y1) * padding_ratio)))
-        crop_x1 = max(0, x1 - pad_x)
-        crop_y1 = max(0, y1 - pad_y)
-        crop_x2 = min(width, x2 + pad_x)
-        crop_y2 = min(height, y2 + pad_y)
-        if crop_x2 <= crop_x1 or crop_y2 <= crop_y1:
-            continue
-
+    for crop_window in crop_windows:
+        detection = crop_window["detection"]
+        crop_x1 = int(crop_window["crop_x1"])
+        crop_y1 = int(crop_window["crop_y1"])
+        crop_x2 = int(crop_window["crop_x2"])
+        crop_y2 = int(crop_window["crop_y2"])
         tab_crop = roi[crop_y1:crop_y2, crop_x1:crop_x2]
         preprocessed = _preprocess_tab_crop(tab_crop, params)
+        crop_radius_mask = radius_mask[crop_y1:crop_y2, crop_x1:crop_x2]
+        masked_edges = cv2.bitwise_and(preprocessed["edges"], crop_radius_mask)
+        masked_closed = cv2.bitwise_and(preprocessed["closed"], crop_radius_mask)
+        masked_preprocessed = {
+            **preprocessed,
+            "edges": masked_edges,
+            "closed": masked_closed,
+        }
         _merge_crop_into_canvas(roi_preprocessed, preprocessed["preprocessed"], crop_x1, crop_y1)
-        _merge_crop_into_canvas(canny_edges, preprocessed["edges"], crop_x1, crop_y1)
-        _merge_crop_into_canvas(closed_edges, preprocessed["closed"], crop_x1, crop_y1)
+        _merge_crop_into_canvas(canny_edges, masked_edges, crop_x1, crop_y1)
+        _merge_crop_into_canvas(closed_edges, masked_closed, crop_x1, crop_y1)
 
-        edge_info = _compute_tab_edge_points_in_roi(detection, preprocessed, center, crop_x1, crop_y1, params)
+        edge_info = _compute_tab_edge_points_in_roi(detection, masked_preprocessed, center, crop_x1, crop_y1, params, radius)
         tab_results.append(
             {
                 "detection": {
@@ -509,8 +649,9 @@ def _run_yolo_tab_edge_pipeline(roi, center, radius, params):
                     "crop_y1": crop_y1,
                     "crop_x2": crop_x2,
                     "crop_y2": crop_y2,
+                    "crop_side": int(crop_window["crop_side"]),
                 },
-                "preprocessed": preprocessed,
+                "preprocessed": masked_preprocessed,
                 "edge_info": edge_info,
             }
         )
@@ -530,7 +671,7 @@ def _run_yolo_tab_edge_pipeline(roi, center, radius, params):
 
     _draw_closed_contours(raw_mask, raw_contours, thickness=1)
     _draw_open_contours(clean_mask, clean_contours, thickness=1)
-    debug_overlay = _make_yolo_debug_overlay(roi, center, radius, clean_contours)
+    debug_overlay = _make_yolo_debug_overlay(roi, center, radius, clean_contours, params)
     point_count = int(np.count_nonzero(clean_mask))
     logs.append("So tab hop le sau loc contour: {}".format(valid_tab_count))
     logs.append("Edge points sau loc outer profile: {}".format(point_count))
@@ -550,6 +691,7 @@ def _run_yolo_tab_edge_pipeline(roi, center, radius, params):
             "tab_edges_clean": clean_mask,
             "yolo_boxes": yolo_boxes,
             "tab_edges_raw": raw_mask,
+            "radius_mask": radius_mask,
             "closed_edges": closed_edges,
             "canny_edges": canny_edges,
             "roi_preprocessed": roi_preprocessed,

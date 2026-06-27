@@ -12,6 +12,8 @@ Tai lieu nay mo ta chi tiet buoc loc bien tai stator, la buoc tao `tab_edges_cle
 ## Luong xu ly
 
 `ROI`
+-> `YOLO detect box tai`
+-> `crop tung tai`
 -> `grayscale`
 -> `CLAHE`
 -> `blur`
@@ -28,6 +30,7 @@ Tai lieu nay mo ta chi tiet buoc loc bien tai stator, la buoc tao `tab_edges_cle
 - Loai bo cac bien nam sau trong long stator.
 - Loai bo nhieu do texture, ranh, va diem le tan man.
 - Tao anh dau vao on dinh cho buoc Radial Signature.
+- Trong nhanh YOLO-guided, annulus van phai duoc ap tren tung crop va khi loc diem contour, khong chi ap cho pipeline legacy.
 
 ## Tham so
 
@@ -74,6 +77,7 @@ r_outer = radius * r_max_factor + outer_margin_px
 - `r_inner` giup loai bo bien nam qua sat tam va bien trong long stator.
 - `r_outer` giup chan nhieu nam qua xa than tron hoac vuot ra ngoai vung mong muon.
 - Cap `r_min_factor` va `r_max_factor` can duoc tune theo ROI thuc te va kich thuoc tai stator.
+- Truong hop hien tai uu tien dải mac dinh `1.0 -> 1.3` theo `r_body`, vi day la vung tai mong muon ma nguoi dung dang tune.
 
 ## Connected component filter
 
@@ -114,6 +118,7 @@ Ham xu ly buoc nay can tra ve cac anh debug sau:
 - Ve duong tron `radius`.
 - Ve hai vong `r_inner` va `r_outer`.
 - Co the to mau component duoc giu va component bi loai.
+- Neu dang chay nhanh YOLO-guided, debug overlay van phai ve lai hai vong annulus de nguoi dung doi chieu voi crop tai va `radial_rays`.
 
 ## Tieu chi danh gia dat yeu cau
 

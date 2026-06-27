@@ -135,7 +135,12 @@ Tu ROI tao anh `tab_edges_clean` chi giu bien tai stator.
 ### Phuong phap chinh
 
 - Dung YOLO de khoanh vung tung tai tren ROI stator.
+- Cac box YOLO gan vuong (nhom tai nho) nen duoc cat bang ROI vuong cung kich thuoc de tranh mot tai bi crop thieu khi box nho hon cac tai con lai.
 - Trong moi crop tai, dung `CLAHE + blur + Canny + morphology close`.
+- Truoc khi loc contour, ap them annulus theo than stator `r_body`:
+  - `r_inner = r_body * r_min_factor`
+  - `r_outer = r_body * r_max_factor`
+  - mac dinh `1.0 -> 1.3`
 - Chi giu contour ngoai hop le, sau do lay `outer profile` nhin tu tam stator.
 - Dau ra cuoi cung van la anh `tab_edges_clean` de phuc vu Radial Signature.
 
@@ -151,6 +156,7 @@ Tu ROI tao anh `tab_edges_clean` chi giu bien tai stator.
 - ROI Gray
 - Preprocessed
 - Canny Edges
+- Radius Mask
 - YOLO Boxes
 - Closed Edges
 - Tab Edges Raw
@@ -160,6 +166,7 @@ Tu ROI tao anh `tab_edges_clean` chi giu bien tai stator.
 ### Dau ra
 
 - `tab_edges_clean`
+- `radius_mask`
 - `tab_edge_preset.json`
 
 ## Buoc 4: Radial Signature
