@@ -8,6 +8,8 @@ from PIL import Image, ImageTk
 
 from src.visualization import cv_bgr_to_rgb, resize_for_display
 
+from .theme import PALETTE
+
 
 def get_nested(data, path, default=None):
     """Read a dotted path from a nested dict."""
@@ -33,7 +35,18 @@ class ImageViewer(ttk.Frame):
 
     def __init__(self, master):
         super().__init__(master)
-        self.label = ttk.Label(self, anchor="center")
+        self.label = tk.Label(
+            self,
+            anchor="center",
+            background=PALETTE["surface"],
+            foreground=PALETTE["muted"],
+            text="Chua co anh hien thi",
+            font=("Segoe UI", 11),
+            bd=1,
+            relief="solid",
+            highlightthickness=0,
+        )
+        self.label.configure(highlightbackground=PALETTE["border"])
         self.label.pack(fill="both", expand=True)
         self._photo = None
 
@@ -57,7 +70,20 @@ class LogPanel(ttk.Frame):
 
     def __init__(self, master, height=10):
         super().__init__(master)
-        self.text = scrolledtext.ScrolledText(self, height=height, wrap="word")
+        self.text = scrolledtext.ScrolledText(
+            self,
+            height=height,
+            wrap="word",
+            background=PALETTE["surface"],
+            foreground=PALETTE["text"],
+            insertbackground=PALETTE["text"],
+            relief="solid",
+            borderwidth=1,
+            highlightthickness=0,
+            font=("Consolas", 9),
+            padx=8,
+            pady=6,
+        )
         self.text.pack(fill="both", expand=True)
         self.text.configure(state="disabled")
 
@@ -139,12 +165,12 @@ class ParameterPanel(ttk.Frame):
                 frame.pack(fill="x", padx=4, pady=4)
                 self._groups[group_name] = frame
             container = self._groups[group_name]
-            row = ttk.Frame(container)
+            row = ttk.Frame(container, style="Card.TFrame")
             row.pack(fill="x", padx=6, pady=3)
             path = spec["path"]
             field_type = spec.get("type", "str")
             value = get_nested(initial_data, path, spec.get("default"))
-            ttk.Label(row, text=spec["label"], width=22).pack(side="left")
+            ttk.Label(row, text=spec["label"], width=22, style="Surface.TLabel").pack(side="left")
 
             if field_type == "bool":
                 var = tk.BooleanVar(value=bool(value))
@@ -261,6 +287,8 @@ class StepPanelBase(ttk.Frame):
         body = ttk.PanedWindow(self, orient="horizontal")
         body.pack(fill="both", expand=True, padx=8, pady=(0, 8))
         self.body = body
+        self._sash_done = False
+        self.bind("<Map>", self._init_sash, add="+")
 
         left = ttk.Frame(body)
         body.add(left, weight=3)
@@ -273,10 +301,14 @@ class StepPanelBase(ttk.Frame):
         self.image_viewer.pack(fill="both", expand=True)
 
         right_host = ttk.Frame(body)
-        body.add(right_host, weight=2)
+        # weight=0: khi phong to cua so, phan du don het cho khung anh ben trai,
+        # con cot tham so giu nguyen be rong -> khong bao gio bi bop hep.
+        body.add(right_host, weight=0)
         self.right_host = right_host
 
-        self.right_canvas = tk.Canvas(right_host, highlightthickness=0, borderwidth=0)
+        self.right_canvas = tk.Canvas(
+            right_host, highlightthickness=0, borderwidth=0, background=PALETTE["bg"]
+        )
         self.right_canvas.pack(side="left", fill="both", expand=True)
         self.right_scrollbar = ttk.Scrollbar(right_host, orient="vertical", command=self.right_canvas.yview)
         self.right_scrollbar.pack(side="right", fill="y")
@@ -290,17 +322,39 @@ class StepPanelBase(ttk.Frame):
         self.bind_all("<MouseWheel>", self._on_global_mousewheel, add="+")
 
         self.auto_update_var = tk.BooleanVar(value=False)
-        auto_row = ttk.Frame(right)
-        auto_row.pack(fill="x", pady=(0, 6))
-        ttk.Checkbutton(auto_row, text="Auto Update", variable=self.auto_update_var).pack(side="left")
+        auto_row = ttk.Frame(right, style="Card.TFrame", padding=(10, 7))
+        auto_row.pack(fill="x", pady=(0, 8))
+        ttk.Checkbutton(
+            auto_row, text="Tu dong cap nhat khi chinh tham so", variable=self.auto_update_var
+        ).pack(side="left")
 
         self.parameter_panel = ParameterPanel(right, field_specs, initial_params, on_change=self._on_params_changed)
         self.parameter_panel.pack(fill="x", expand=False)
 
-        self.log_label = ttk.Label(right, text="Log")
-        self.log_label.pack(anchor="w", pady=(6, 4))
+        self.log_label = ttk.Label(right, text="Log", style="Section.TLabel")
+        self.log_label.pack(anchor="w", pady=(8, 4))
         self.log_panel = LogPanel(right, height=14)
         self.log_panel.pack(fill="both", expand=True)
+
+    RIGHT_PANEL_WIDTH = 600
+
+    def _init_sash(self, _event=None):
+        """Dat vach chia khung lan dau de cot tham so rong co dinh ben phai.
+
+        Tranh truong hop phong to cua so lam cot tham so bi bop hep, che mat o nhap.
+        """
+        if self._sash_done:
+            return
+        self.update_idletasks()
+        width = self.body.winfo_width()
+        if width <= 1:
+            self.after(120, self._init_sash)
+            return
+        try:
+            self.body.sashpos(0, max(400, width - self.RIGHT_PANEL_WIDTH))
+            self._sash_done = True
+        except Exception:
+            pass
 
     def _on_right_canvas_configure(self, event):
         """Keep the scrollable right panel matched to the canvas width."""

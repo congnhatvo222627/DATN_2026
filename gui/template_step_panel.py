@@ -42,7 +42,7 @@ class TemplateStepPanel(StepPanelBase):
         ttk.Label(self.toolbar, text="hoac file").pack(side="left")
         ttk.Entry(self.toolbar, textvariable=self.roi_path_var, width=20).pack(side="left", padx=6, fill="x", expand=True)
         ttk.Button(self.toolbar, text="Chon ROI", command=self.choose_roi).pack(side="left", padx=3)
-        ttk.Button(self.toolbar, text="Run", command=self.run_step).pack(side="left", padx=3)
+        ttk.Button(self.toolbar, text="▶ Run", command=self.run_step, style="Accent.TButton").pack(side="left", padx=3)
         ttk.Button(self.toolbar, text="Save Template", command=self.save_template).pack(side="left", padx=3)
         ttk.Button(self.toolbar, text="Save As Template...", command=self.save_template_as).pack(side="left", padx=3)
         ttk.Button(self.toolbar, text="Save Image...", command=self.save_current_debug_image).pack(side="left", padx=3)

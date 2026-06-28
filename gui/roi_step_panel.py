@@ -77,7 +77,7 @@ class RoiStepPanel(StepPanelBase):
         self.roi_combo = ttk.Combobox(self.toolbar, textvariable=self.roi_id_var, state="readonly", width=8)
         self.roi_combo.pack(side="left")
         self.roi_combo.bind("<<ComboboxSelected>>", lambda _event: self.refresh_selected_roi())
-        self.run_button = ttk.Button(self.toolbar, text="Run", command=self.run_step)
+        self.run_button = ttk.Button(self.toolbar, text="▶ Run", command=self.run_step, style="Accent.TButton")
         self.run_button.pack(side="left", padx=3)
         ttk.Button(self.toolbar, text="Save ROI", command=self.save_selected_roi).pack(side="left", padx=3)
         ttk.Button(self.toolbar, text="Save Preset", command=self.save_preset).pack(side="left", padx=3)

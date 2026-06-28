@@ -87,7 +87,7 @@ class MatchingStepPanel(StepPanelBase):
         ttk.Button(self.toolbar, text="Chon ROI", command=self.choose_roi).pack(side="left", padx=3)
         ttk.Button(self.toolbar, text="Load Template", command=self.load_template).pack(side="left", padx=3)
         ttk.Button(self.toolbar, text="Load Template File...", command=self.load_template_file).pack(side="left", padx=3)
-        ttk.Button(self.toolbar, text="Run", command=self.run_step).pack(side="left", padx=3)
+        ttk.Button(self.toolbar, text="▶ Run", command=self.run_step, style="Accent.TButton").pack(side="left", padx=3)
 
         self._build_plot_area()
         self._build_right_table()

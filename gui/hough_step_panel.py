@@ -13,6 +13,7 @@ from src.preset_store import load_preset, save_preset
 
 from .common_widgets import ResultTable, StepPanelBase
 from .preset_dialogs import ask_load_preset_path, ask_save_preset_path
+from .theme import PALETTE
 
 
 MODE_SINGLE = "Anh don"
@@ -82,9 +83,9 @@ class HoughStepPanel(StepPanelBase):
         self.mode_combo.pack(side="left", padx=(2, 8))
         self.mode_combo.bind("<<ComboboxSelected>>", lambda _event: self._on_mode_change())
         ttk.Label(self.toolbar, text="Anh khay").pack(side="left")
-        ttk.Entry(self.toolbar, textvariable=self.image_path_var, width=36).pack(side="left", padx=6, fill="x", expand=True)
+        ttk.Entry(self.toolbar, textvariable=self.image_path_var, width=30).pack(side="left", padx=6)
         ttk.Button(self.toolbar, text="Chon anh", command=self.choose_image).pack(side="left", padx=3)
-        self.run_button = ttk.Button(self.toolbar, text="Run", command=self.run_step)
+        self.run_button = ttk.Button(self.toolbar, text="▶ Run", command=self.run_step, style="Accent.TButton")
         self.run_button.pack(side="left", padx=3)
         self.prev_button = ttk.Button(self.toolbar, text="< Prev", command=self.prev_image, state="disabled")
         self.prev_button.pack(side="left", padx=3)
@@ -92,14 +93,20 @@ class HoughStepPanel(StepPanelBase):
         self.next_button.pack(side="left", padx=3)
         ttk.Button(self.toolbar, text="Save Preset", command=self.save_preset).pack(side="left", padx=3)
         ttk.Button(self.toolbar, text="Load Preset", command=self.load_preset_file).pack(side="left", padx=3)
-        ttk.Button(self.toolbar, text="Save As...", command=self.save_preset_as).pack(side="left", padx=3)
-        ttk.Button(self.toolbar, text="Load As...", command=self.load_preset_as).pack(side="left", padx=3)
-        ttk.Button(self.toolbar, text="Reset", command=self.reset_params).pack(side="left", padx=3)
         ttk.Label(self.toolbar, textvariable=self.status_var).pack(side="left", padx=(8, 0))
         ttk.Label(self.left_panel, textvariable=self.nav_var, font=("Segoe UI", 10, "bold")).pack(anchor="w", pady=(0, 2), before=self.image_viewer)
         self._build_hough_result_table()
         self._configure_table_columns()
+        self._build_param_actions()
         self._build_overview_table()
+
+    def _build_param_actions(self):
+        """Nhom nut thao tac preset nam ngay duoi phan tham so cho de dung."""
+        actions = ttk.Frame(self.right_panel, style="Card.TFrame", padding=(8, 7))
+        actions.pack(fill="x", pady=(8, 0))
+        ttk.Button(actions, text="↺ Reset tham so", command=self.reset_params).pack(side="left")
+        ttk.Button(actions, text="Load As...", command=self.load_preset_as).pack(side="right", padx=(4, 0))
+        ttk.Button(actions, text="Save As...", command=self.save_preset_as).pack(side="right", padx=(4, 0))
 
     def _build_hough_display_header(self):
         parent = self.left_panel
@@ -121,7 +128,8 @@ class HoughStepPanel(StepPanelBase):
             self.display_header,
             textvariable=self.detected_var,
             font=("Segoe UI", 16, "bold"),
-            fg="#555555",
+            fg=PALETTE["muted"],
+            bg=PALETTE["bg"],
         )
         self.detected_label.pack(side="right", padx=(12, 0))
 
@@ -417,7 +425,7 @@ class HoughStepPanel(StepPanelBase):
         circles = result.get("data", {}).get("circles_filtered", [])
         expected = int(round(float(params.get("expected_count", 12))))
         self.detected_var.set("Detected: {} / {}".format(len(circles), expected))
-        self.detected_label.configure(fg="#1a8a1a" if len(circles) == expected else "#c0392b")
+        self.detected_label.configure(fg=PALETTE["success"] if len(circles) == expected else PALETTE["danger"])
         rows = [
             (
                 item.get("id", index),
@@ -433,5 +441,5 @@ class HoughStepPanel(StepPanelBase):
 
     def _reset_summary_ui(self):
         self.detected_var.set("Detected: - / -")
-        self.detected_label.configure(fg="#555555")
+        self.detected_label.configure(fg=PALETTE["muted"])
         self.table.set_rows([])

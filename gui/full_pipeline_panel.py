@@ -35,6 +35,7 @@ from src.template_builder import load_template_data
 from src.visualization import normalize_display_angle_deg
 
 from .common_widgets import ResultTable, StepPanelBase
+from .theme import PALETTE
 
 
 POLL_MS = 60
@@ -79,13 +80,15 @@ class FullPipelinePanel(StepPanelBase):
             self.toolbar,
             text="▶ Run",
             command=self.run_step,
-            bg="#2e7d32",
+            bg=PALETTE["success"],
             fg="white",
-            activebackground="#1b5e20",
+            activebackground=PALETTE["success_hover"],
             activeforeground="white",
             font=("Segoe UI", 10, "bold"),
-            relief="raised",
-            padx=12,
+            relief="flat",
+            bd=0,
+            padx=16,
+            pady=4,
             cursor="hand2",
         )
         self.run_button.pack(side="left", padx=(8, 2))
@@ -93,13 +96,15 @@ class FullPipelinePanel(StepPanelBase):
             self.toolbar,
             text="■ Stop",
             command=self.stop_step,
-            bg="#c62828",
+            bg=PALETTE["danger"],
             fg="white",
-            activebackground="#8e0000",
+            activebackground=PALETTE["danger_hover"],
             activeforeground="white",
             font=("Segoe UI", 10, "bold"),
-            relief="raised",
-            padx=12,
+            relief="flat",
+            bd=0,
+            padx=16,
+            pady=4,
             cursor="hand2",
             state="disabled",
         )

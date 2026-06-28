@@ -1,6 +1,5 @@
 """Main Tkinter application for detect_stator."""
 
-import tkinter as tk
 from tkinter import ttk
 
 from PIL import Image, ImageTk
@@ -15,6 +14,7 @@ from .matching_step_panel import MatchingStepPanel
 from .radial_signature_panel import RadialSignaturePanel
 from .roi_step_panel import RoiStepPanel
 from .template_step_panel import TemplateStepPanel
+from .theme import apply_theme
 
 
 class StatorVisionApp:
@@ -29,9 +29,18 @@ class StatorVisionApp:
         root.title(APP_TITLE)
         root.geometry("1680x980")
         root.minsize(1320, 840)
+        apply_theme(root)
         self._set_app_icon(root)
+        # Mo to toan man hinh cho vua layout (man hinh nho van thay du nut).
+        try:
+            root.state("zoomed")
+        except Exception:
+            pass
 
-        notebook = ttk.Notebook(root)
+        body = ttk.Frame(root, padding=(10, 8, 10, 10))
+        body.pack(fill="both", expand=True)
+
+        notebook = ttk.Notebook(body)
         notebook.pack(fill="both", expand=True)
 
         self.hough_panel = HoughStepPanel(notebook, self)
@@ -43,12 +52,12 @@ class StatorVisionApp:
         self.matching_panel = MatchingStepPanel(notebook, self)
         self.full_pipeline_panel = FullPipelinePanel(notebook, self)
 
-        notebook.add(self.hough_panel, text="1. Hough")
-        notebook.add(self.roi_panel, text="2. ROI")
-        notebook.add(self.radial_signature_panel, text="3-4. Radial Signature")
-        notebook.add(self.template_panel, text="5. Template 0 degree")
-        notebook.add(self.matching_panel, text="6. Match MSE")
-        notebook.add(self.full_pipeline_panel, text="7. Full Pipeline")
+        notebook.add(self.hough_panel, text="  1 · Hough  ")
+        notebook.add(self.roi_panel, text="  2 · ROI  ")
+        notebook.add(self.radial_signature_panel, text="  3-4 · Radial Signature  ")
+        notebook.add(self.template_panel, text="  5 · Template 0°  ")
+        notebook.add(self.matching_panel, text="  6 · Match MSE  ")
+        notebook.add(self.full_pipeline_panel, text="  7 · Full Pipeline  ")
 
     def _set_app_icon(self, root):
         """Dat logo Bach Khoa lam icon cua so (thay icon chiec la mac dinh)."""
