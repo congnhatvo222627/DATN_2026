@@ -26,7 +26,7 @@ def main():
     try:
         template_data = load_template_data(TEMPLATE_DATA_PATH)
     except Exception:
-        print("Chua co template_data.json.")
+        print("Chua co data/template/template_data.json.")
         print("Hay tao template trong GUI truoc, sau do chay lai: python main.py")
         return
 

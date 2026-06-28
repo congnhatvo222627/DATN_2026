@@ -324,6 +324,7 @@ class StepPanelBase(ttk.Frame):
         self.auto_update_var = tk.BooleanVar(value=False)
         auto_row = ttk.Frame(right, style="Card.TFrame", padding=(10, 7))
         auto_row.pack(fill="x", pady=(0, 8))
+        self.auto_update_row = auto_row
         ttk.Checkbutton(
             auto_row, text="Tu dong cap nhat khi chinh tham so", variable=self.auto_update_var
         ).pack(side="left")
@@ -396,11 +397,25 @@ class StepPanelBase(ttk.Frame):
         if self.auto_update_var.get():
             self.schedule_auto_run(self.run_step)
 
+    def cancel_auto_run(self):
+        """Cancel a pending auto-run callback if one is waiting."""
+        if self._auto_job is None:
+            return
+        try:
+            self.after_cancel(self._auto_job)
+        except Exception:
+            pass
+        self._auto_job = None
+
+    def _run_scheduled_callback(self, callback):
+        """Clear the pending marker before executing the delayed callback."""
+        self._auto_job = None
+        callback()
+
     def schedule_auto_run(self, callback):
         """Schedule an auto-run after a short delay."""
-        if self._auto_job is not None:
-            self.after_cancel(self._auto_job)
-        self._auto_job = self.after(400, callback)
+        self.cancel_auto_run()
+        self._auto_job = self.after(400, self._run_scheduled_callback, callback)
 
     def set_result(self, result):
         """Update debug images and logs from a step result.

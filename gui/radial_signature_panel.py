@@ -32,11 +32,30 @@ def _clone_specs_with_group_prefix(specs, prefix):
     return cloned
 
 
-FIELD_SPECS = _clone_specs_with_group_prefix(TAB_EDGE_FIELD_SPECS, "Tab Edges") + _clone_specs_with_group_prefix(
-    RADIAL_FIELD_SPECS, "Radial"
+FIELD_SPECS = (
+    _clone_specs_with_group_prefix(TAB_EDGE_FIELD_SPECS, "Tab Edges")
+    + _clone_specs_with_group_prefix(RADIAL_FIELD_SPECS, "Radial")
 )
 TAB_EDGE_PATHS = [spec["path"] for spec in TAB_EDGE_FIELD_SPECS]
 RADIAL_PATHS = [spec["path"] for spec in RADIAL_FIELD_SPECS]
+DEBUG_IMAGE_PRIORITY = [
+    "radial_rays",
+    "tab_edges_clean",
+    "closed_edges",
+    "radial_source",
+    "debug_overlay",
+    "signature_plot",
+    "tab_mask",
+    "binary_ring",
+    "binary_otsu",
+    "radius_band",
+    "canny_edges",
+    "tab_edges_raw",
+    "roi_preprocessed",
+    "roi_gray",
+    "radius_mask",
+    "radial_source_raw",
+]
 
 
 class RadialSignaturePanel(StepPanelBase):
@@ -48,21 +67,25 @@ class RadialSignaturePanel(StepPanelBase):
         self.radial_params = preset_bundle["radial_params"]
         self.roi_id_var = tk.StringVar()
         self.roi_path_var = tk.StringVar()
-        self._last_run_mode = "radial"
         super().__init__(master, app, FIELD_SPECS, self._combine_panel_data())
         ttk.Label(self.toolbar, text="ROI file").pack(side="left")
-        ttk.Entry(self.toolbar, textvariable=self.roi_path_var, width=28).pack(side="left", padx=6, fill="x", expand=True)
+        ttk.Entry(self.toolbar, textvariable=self.roi_path_var, width=28).pack(
+            side="left", padx=6, fill="x", expand=True
+        )
         ttk.Button(self.toolbar, text="Chon ROI", command=self.choose_roi).pack(side="left", padx=3)
         ttk.Label(self.toolbar, text="ROI ID").pack(side="left", padx=(8, 2))
         self.roi_combo = ttk.Combobox(self.toolbar, textvariable=self.roi_id_var, state="readonly", width=8)
         self.roi_combo.pack(side="left")
-        ttk.Button(self.toolbar, text="▶ Run Tab Edges", command=self.run_tab_edges, style="Accent.TButton").pack(side="left", padx=3)
-        ttk.Button(self.toolbar, text="▶ Run Radial", command=self.run_radial, style="Accent.TButton").pack(side="left", padx=3)
+        ttk.Button(self.toolbar, text="Run", command=self.run_step, style="Accent.TButton").pack(
+            side="left", padx=3
+        )
         ttk.Button(self.toolbar, text="Save Preset", command=self.save_preset).pack(side="left", padx=3)
         ttk.Button(self.toolbar, text="Load Preset", command=self.load_preset_file).pack(side="left", padx=3)
         ttk.Button(self.toolbar, text="Save As...", command=self.save_preset_as).pack(side="left", padx=3)
         ttk.Button(self.toolbar, text="Load As...", command=self.load_preset_as).pack(side="left", padx=3)
         ttk.Button(self.toolbar, text="Reset", command=self.reset_params).pack(side="left", padx=3)
+        self.log_label.pack_forget()
+        self.log_panel.pack_forget()
         self.refresh_roi_ids()
         self._store_shared_params()
 
@@ -104,7 +127,9 @@ class RadialSignaturePanel(StepPanelBase):
 
     def save_preset(self):
         self._capture_params()
-        save_radial_signature_preset(RADIAL_SIGNATURE_PRESET_PATH, self.tab_edge_params, self.radial_params)
+        save_radial_signature_preset(
+            RADIAL_SIGNATURE_PRESET_PATH, self.tab_edge_params, self.radial_params
+        )
         messagebox.showinfo("Preset", "Da luu radial_signature_preset.json")
 
     def load_preset_file(self):
@@ -115,18 +140,24 @@ class RadialSignaturePanel(StepPanelBase):
         self._store_shared_params()
 
     def save_preset_as(self):
-        target_path = ask_save_preset_path(RADIAL_SIGNATURE_PRESET_PATH, "Luu preset Tab Edges + Radial thanh file rieng")
+        target_path = ask_save_preset_path(
+            RADIAL_SIGNATURE_PRESET_PATH, "Luu preset Tab Edges + Radial thanh file rieng"
+        )
         if not target_path:
             return
         self._capture_params()
         save_radial_signature_preset(target_path, self.tab_edge_params, self.radial_params)
         messagebox.showinfo(
             "Preset",
-            "Da luu bundle preset test tai:\n{}\n\nPreset goc trong thu muc presets khong bi thay doi.".format(target_path),
+            "Da luu bundle preset test tai:\n{}\n\nPreset goc trong thu muc presets khong bi thay doi.".format(
+                target_path
+            ),
         )
 
     def load_preset_as(self):
-        target_path = ask_load_preset_path(RADIAL_SIGNATURE_PRESET_PATH, "Nap preset Tab Edges + Radial tu file rieng")
+        target_path = ask_load_preset_path(
+            RADIAL_SIGNATURE_PRESET_PATH, "Nap preset Tab Edges + Radial tu file rieng"
+        )
         if not target_path:
             return
         preset_bundle = load_radial_signature_preset(target_path)
@@ -136,7 +167,9 @@ class RadialSignaturePanel(StepPanelBase):
         self._store_shared_params()
         messagebox.showinfo(
             "Preset",
-            "Da nap bundle preset test tu:\n{}\n\nPreset goc trong thu muc presets khong bi ghi de.".format(target_path),
+            "Da nap bundle preset test tu:\n{}\n\nPreset goc trong thu muc presets khong bi ghi de.".format(
+                target_path
+            ),
         )
 
     def reset_params(self):
@@ -174,7 +207,9 @@ class RadialSignaturePanel(StepPanelBase):
             return effective_item
         base_item = find_roi_item(roi_result["data"]["rois"], roi_id)
         if base_item is not None:
-            roi_params = self.app.shared.get("roi_params") or load_preset(ROI_PRESET_PATH, DEFAULT_ROI_PARAMS)
+            roi_params = self.app.shared.get("roi_params") or load_preset(
+                ROI_PRESET_PATH, DEFAULT_ROI_PARAMS
+            )
             refine_result = run_step_roi_refine(base_item, roi_params)
             if refine_result["success"]:
                 refined_item = refine_result["data"]["roi_item"]
@@ -190,13 +225,20 @@ class RadialSignaturePanel(StepPanelBase):
         if radial_result and radial_result.get("success"):
             self.app.shared.setdefault("radial_results", {})[roi_item["id"]] = radial_result
 
-    def run_tab_edges(self):
-        self._run_mode("tab_edge")
+    @staticmethod
+    def _sort_image_keys(keys):
+        """Dat cac anh debug chinh len dau, phan con lai giu thu tu on dinh."""
+        priority_map = {name: index for index, name in enumerate(DEBUG_IMAGE_PRIORITY)}
+        return sorted(keys, key=lambda name: (priority_map.get(name, len(DEBUG_IMAGE_PRIORITY)), name))
 
-    def run_radial(self):
-        self._run_mode("radial")
+    def _order_result_images(self, images):
+        """Sap xep lai dict anh debug de combobox hien thi theo muc uu tien."""
+        ordered = {}
+        for key in self._sort_image_keys(images.keys()):
+            ordered[key] = images[key]
+        return ordered
 
-    def _run_mode(self, mode):
+    def run_step(self):
         self.refresh_roi_ids()
         try:
             roi_item = self._resolve_roi_item()
@@ -204,15 +246,11 @@ class RadialSignaturePanel(StepPanelBase):
             messagebox.showwarning("ROI", str(exc))
             return
         self._capture_params()
-        self._last_run_mode = mode
 
         tab_result = run_step_tab_edges(roi_item, self.tab_edge_params)
         self._store_step_results(roi_item, tab_result)
-        if not tab_result["success"] or mode == "tab_edge":
-            self.set_result(tab_result)
-            return
 
-        radial_result = run_step_radial(roi_item, tab_result["images"], self.radial_params)
+        radial_result = run_step_radial(roi_item, tab_result.get("images", {}), self.radial_params)
         self._store_step_results(roi_item, tab_result, radial_result)
         if radial_result["success"]:
             combined_result = {
@@ -231,10 +269,5 @@ class RadialSignaturePanel(StepPanelBase):
                 "images": radial_result.get("images", {}) or tab_result.get("images", {}),
                 "logs": list(tab_result.get("logs", [])) + list(radial_result.get("logs", [])),
             }
+        combined_result["images"] = self._order_result_images(combined_result.get("images", {}))
         self.set_result(combined_result)
-
-    def run_step(self):
-        if self._last_run_mode == "tab_edge":
-            self.run_tab_edges()
-            return
-        self.run_radial()

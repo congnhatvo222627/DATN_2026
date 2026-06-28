@@ -325,6 +325,40 @@ def draw_radial_rays(roi, center, signature_raw, radius=None, params=None, measu
     return output
 
 
+def build_radial_debug_views(roi, center, signature_raw, radius=None, params=None, measured_mask=None, source_images=None):
+    """Build radial-ray overlays for the ROI and optional edge-source images.
+
+    Khi xem debug sau buoc radial, user thuong muon thay ngay tia quet tren
+    `tab_edges_clean` / `closed_edges`, khong chi tren ROI goc. Ham nay tao:
+    - `radial_rays`: overlay tren ROI goc
+    - `<name>`: overlay tia tren anh nguon edge
+    - `<name>_raw`: ban goc de doi chieu khi can
+    """
+    overlays = {
+        "radial_rays": draw_radial_rays(
+            roi,
+            center,
+            signature_raw,
+            radius=radius,
+            params=params,
+            measured_mask=measured_mask,
+        )
+    }
+    for name, image in (source_images or {}).items():
+        if image is None:
+            continue
+        overlays["{}_raw".format(name)] = image
+        overlays[name] = draw_radial_rays(
+            image,
+            center,
+            signature_raw,
+            radius=radius,
+            params=params,
+            measured_mask=measured_mask,
+        )
+    return overlays
+
+
 def plot_signature_image(signature_raw, signature_norm=None):
     """Render a signature plot as a BGR image."""
     figure, axes = plt.subplots(2 if signature_norm is not None else 1, 1, figsize=(8, 4.8), dpi=120)

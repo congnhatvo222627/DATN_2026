@@ -36,7 +36,7 @@ def load_preset(path, default):
     path_obj = Path(path)
     if not path_obj.is_file():
         return copy.deepcopy(default)
-    with path_obj.open("r", encoding="utf-8") as handle:
+    with path_obj.open("r", encoding="utf-8-sig") as handle:
         payload = json.load(handle)
     if isinstance(payload, dict) and "config" in payload and isinstance(payload["config"], dict):
         payload = payload["config"]

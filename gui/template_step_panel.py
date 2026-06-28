@@ -48,35 +48,45 @@ class TemplateStepPanel(StepPanelBase):
         ttk.Button(self.toolbar, text="Save Image...", command=self.save_current_debug_image).pack(side="left", padx=3)
         self.latest_result = None
         self.latest_roi_item = None
+        self.parameter_panel.pack_forget()
+        self.log_label.pack_forget()
+        self.log_panel.pack_forget()
         self._build_rotation_controls()
         self.refresh_ids()
 
     def _build_rotation_controls(self):
-        ttk.Label(self.toolbar, text="Xoay").pack(side="left", padx=(10, 4))
+        rotation_box = ttk.LabelFrame(self.right_panel, text="Dieu khien xoay ROI", padding=(10, 10))
+        rotation_box.pack(fill="x", pady=(8, 0))
+
+        angle_row = ttk.Frame(rotation_box)
+        angle_row.pack(fill="x")
+        ttk.Label(angle_row, text="Xoay").pack(side="left", padx=(0, 6))
         self.rotation_scale = ttk.Scale(
-            self.toolbar,
+            angle_row,
             orient="horizontal",
             from_=-180.0,
             to=180.0,
             length=170,
             command=self._on_rotation_scale,
         )
-        self.rotation_scale.pack(side="left", padx=(0, 4))
+        self.rotation_scale.pack(side="left", fill="x", expand=True, padx=(0, 6))
         self.rotation_scale.set(0.0)
 
-        self.rotation_entry = ttk.Entry(self.toolbar, textvariable=self.rotation_angle_var, width=7)
+        self.rotation_entry = ttk.Entry(angle_row, textvariable=self.rotation_angle_var, width=7)
         self.rotation_entry.pack(side="left", padx=(0, 6))
         self.rotation_entry.bind("<Return>", lambda _event: self._commit_rotation_entry())
         self.rotation_entry.bind("<FocusOut>", lambda _event: self._commit_rotation_entry())
 
-        ttk.Label(self.toolbar, text="Buoc").pack(side="left", padx=(2, 4))
-        self.rotation_step_entry = ttk.Entry(self.toolbar, textvariable=self.rotation_step_var, width=6)
+        step_row = ttk.Frame(rotation_box)
+        step_row.pack(fill="x", pady=(8, 0))
+        ttk.Label(step_row, text="Buoc").pack(side="left", padx=(0, 6))
+        self.rotation_step_entry = ttk.Entry(step_row, textvariable=self.rotation_step_var, width=6)
         self.rotation_step_entry.pack(side="left", padx=(0, 4))
         self.rotation_step_entry.bind("<Return>", lambda _event: self._commit_rotation_step_entry())
         self.rotation_step_entry.bind("<FocusOut>", lambda _event: self._commit_rotation_step_entry())
 
-        ttk.Button(self.toolbar, text="<-", command=lambda: self._nudge_rotation(-1.0)).pack(side="left", padx=2)
-        ttk.Button(self.toolbar, text="->", command=lambda: self._nudge_rotation(1.0)).pack(side="left", padx=2)
+        ttk.Button(step_row, text="<-", command=lambda: self._nudge_rotation(-1.0)).pack(side="left", padx=(8, 2))
+        ttk.Button(step_row, text="->", command=lambda: self._nudge_rotation(1.0)).pack(side="left", padx=2)
 
     def refresh_ids(self):
         """Populate the stator ID combobox from the ROI step result."""
@@ -289,7 +299,7 @@ class TemplateStepPanel(StepPanelBase):
         )
         self.latest_result["data"] = saved_payload
         self.app.shared["template_data"] = saved_payload
-        messagebox.showinfo("Template", "Da luu template_data.json va template_roi.png")
+        messagebox.showinfo("Template", "Da luu data/template/template_data.json va template_roi.png")
 
     def save_template_as(self):
         template_data, template_roi = self._ensure_template_ready()
@@ -307,7 +317,7 @@ class TemplateStepPanel(StepPanelBase):
         roi_name = roi_path.name if roi_path is not None else "(khong co anh ROI)"
         message = (
             "Da luu template test tai:\n{}\n\nAnh ROI di kem: {}\n"
-            "Nut Save Template mac dinh van luu o thu muc presets."
+            "Nut Save Template mac dinh van luu o data/template/."
         ).format(
             json_path,
             roi_name,

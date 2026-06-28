@@ -7,7 +7,7 @@ from .angle_matcher import match_by_mse
 from .config import OUTPUT_DIR
 from .hough_detector import run_hough_step
 from .io_utils import read_image, write_image
-from .radial_signature import build_radial_signature, draw_radial_rays, plot_signature_image
+from .radial_signature import build_radial_debug_views, build_radial_signature, plot_signature_image
 from .roi_extractor import run_roi_crop_step, run_roi_refine_step, run_roi_step
 from .tab_edge_filter import filter_tab_edges
 from .template_builder import run_template_step
@@ -94,18 +94,23 @@ def run_step_radial(roi_item, tab_edges_clean, radial_params):
             radial_params,
             radius=roi_item["radius"],
         )
+        radial_debug_views = build_radial_debug_views(
+            roi_item["roi"],
+            roi_item["center_in_roi"],
+            radial_result["data"]["signature_raw"],
+            radius=roi_item["radius"],
+            params=radial_params,
+            measured_mask=radial_result["data"]["measured_mask"],
+            source_images={
+                "tab_edges_clean": tab_images.get("tab_edges_clean"),
+                "closed_edges": tab_images.get("closed_edges"),
+                "radial_source": radial_result["data"]["radial_source"],
+            },
+        )
         radial_result["images"] = {
-            "radial_rays": draw_radial_rays(
-                roi_item["roi"],
-                roi_item["center_in_roi"],
-                radial_result["data"]["signature_raw"],
-                radius=roi_item["radius"],
-                params=radial_params,
-                measured_mask=radial_result["data"]["measured_mask"],
-            ),
-            "radial_source": radial_result["data"]["radial_source"],
-            "radius_band": radial_result["data"]["radius_band"],
             **tab_images,
+            "radius_band": radial_result["data"]["radius_band"],
+            **radial_debug_views,
             "signature_plot": plot_signature_image(
                 radial_result["data"]["signature_raw"],
                 radial_result["data"]["signature_norm"],

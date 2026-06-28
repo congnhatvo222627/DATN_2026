@@ -1,59 +1,49 @@
 {
   "tab_edge_params": {
-    "yolo": {
-      "enabled": true,
-      "model_path": "C:\\Users\\congn\\Desktop\\New folder (2)\\best.pt",
-      "conf_threshold": 0.25,
-      "box_padding_ratio": 0.1,
-      "box_padding_min_px": 12
-    },
     "preprocess": {
-      "use_clahe": true,
+      "use_clahe": false,
       "clahe_clip_limit": 2.0,
       "clahe_tile_grid_size": 8,
-      "blur_method": "gaussian",
       "gaussian_kernel": 5,
-      "median_kernel": 5,
-      "bilateral_d": 7,
-      "bilateral_sigma_color": 50,
-      "bilateral_sigma_space": 50
+      "gaussian_sigma": 1.0
+    },
+    "threshold": {
+      "use_otsu": true,
+      "manual_value": 0,
+      "invert": true
+    },
+    "radius_filter": {
+      "enabled": true,
+      "r_min_factor": 1.0,
+      "r_max_factor": 1.3,
+      "inner_margin_px": 0.0,
+      "outer_margin_px": 0.0
+    },
+    "component_filter": {
+      "min_area": 1500,
+      "max_area": 0,
+      "angle_bin_deg": 5.0,
+      "max_angle_span_deg": 0.0
     },
     "canny": {
       "threshold1": 70,
       "threshold2": 170,
       "aperture_size": 3,
       "l2_gradient": false
-    },
-    "contour_filter": {
-      "min_area": 24,
-      "min_area_ratio": 0.0015,
-      "min_keep_distance_ratio": 0.88,
-      "outer_profile_bin_deg": 1.0,
-      "max_point_gap_px": 28.0,
-      "max_angle_gap_deg": 5.0,
-      "radial_angle_tolerance_deg": 18.0
-    },
-    "morphology": {
-      "use_close": true,
-      "close_kernel": 3,
-      "close_iter": 1,
-      "use_dilate": false,
-      "dilate_kernel": 3,
-      "dilate_iter": 1
     }
   },
   "radial_params": {
-    "source_mode": "closed_edges",
+    "source_mode": "tab_edges_clean",
     "use_radius_band": true,
-    "inner_radius_scale": 0.99,
-    "outer_radius_scale": 1.34,
-    "use_source_dilate": true,
+    "inner_radius_scale": 1.0,
+    "outer_radius_scale": 1.3,
+    "use_source_dilate": false,
     "source_dilate_kernel": 3,
     "source_dilate_iter": 1,
     "num_angles": 360,
     "ray_step_px": 1.0,
     "ray_thickness": 2,
-    "min_valid_radius_scale": 0.9,
+    "min_valid_radius_scale": 1.0,
     "floor_to_radius": true,
     "reject_outliers": false,
     "outlier_window": 11,

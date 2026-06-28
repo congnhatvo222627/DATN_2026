@@ -2,4 +2,3 @@ opencv-python
 numpy
 matplotlib
 pillow
-ultralytics

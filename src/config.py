@@ -4,16 +4,16 @@ from pathlib import Path
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+ASSETS_DIR = BASE_DIR / "assets"
 DATA_DIR = BASE_DIR / "data"
 INPUT_DIR = DATA_DIR / "input"
 TEMPLATE_DIR = DATA_DIR / "template"
 ROI_DIR = DATA_DIR / "roi"
 OUTPUT_DIR = DATA_DIR / "output"
 PRESET_DIR = BASE_DIR / "presets"
-TAB_EDGE_YOLO_MODEL_PATH = BASE_DIR / "best.pt"
-LOGO_PATH = BASE_DIR / "Logo_Đại_học_Bách_Khoa_Hà_Nội.png"
+LOGO_PATH = ASSETS_DIR / "logo_bkhn.png"
 
-APP_TITLE = "Hệ thống nhận diện tâm và góc xoay stator"
+APP_TITLE = "He thong nhan dien tam va goc xoay stator"
 
 HOUGH_PRESET_PATH = PRESET_DIR / "hough_preset.json"
 ROI_PRESET_PATH = PRESET_DIR / "roi_preset.json"
@@ -21,8 +21,8 @@ TAB_EDGE_PRESET_PATH = PRESET_DIR / "tab_edge_preset.json"
 RADIAL_PRESET_PATH = PRESET_DIR / "radial_preset.json"
 RADIAL_SIGNATURE_PRESET_PATH = PRESET_DIR / "radial_signature_preset.json"
 CALIBRATION_PRESET_PATH = PRESET_DIR / "calibration_preset.json"
-TEMPLATE_DATA_PATH = PRESET_DIR / "template_data.json"
-TEMPLATE_ROI_PATH = PRESET_DIR / "template_roi.png"
+TEMPLATE_DATA_PATH = TEMPLATE_DIR / "template_data.json"
+TEMPLATE_ROI_PATH = TEMPLATE_DIR / "template_roi.png"
 
 DEFAULT_HOUGH_PARAMS = {
     "expected_count": 12,
@@ -101,29 +101,17 @@ DEFAULT_ROI_PARAMS = {
 }
 
 DEFAULT_TAB_EDGE_PARAMS = {
-    "yolo": {
-        "enabled": True,
-        "model_path": str(TAB_EDGE_YOLO_MODEL_PATH),
-        "conf_threshold": 0.25,
-        "box_padding_ratio": 0.10,
-        "box_padding_min_px": 12,
-    },
     "preprocess": {
-        "use_clahe": True,
+        "use_clahe": False,
         "clahe_clip_limit": 2.0,
         "clahe_tile_grid_size": 8,
-        "blur_method": "gaussian",
         "gaussian_kernel": 5,
-        "median_kernel": 5,
-        "bilateral_d": 7,
-        "bilateral_sigma_color": 50,
-        "bilateral_sigma_space": 50,
+        "gaussian_sigma": 1.0,
     },
-    "canny": {
-        "threshold1": 70,
-        "threshold2": 170,
-        "aperture_size": 3,
-        "l2_gradient": False,
+    "threshold": {
+        "use_otsu": True,
+        "manual_value": 0,
+        "invert": True,
     },
     "radius_filter": {
         "enabled": True,
@@ -132,44 +120,33 @@ DEFAULT_TAB_EDGE_PARAMS = {
         "inner_margin_px": 0.0,
         "outer_margin_px": 0.0,
     },
-    "contour_filter": {
-        "min_area": 24,
-        "min_area_ratio": 0.0015,
-        "min_keep_distance_ratio": 0.88,
-        "outer_profile_bin_deg": 1.0,
-        "max_point_gap_px": 28.0,
-        "max_angle_gap_deg": 5.0,
-        "radial_angle_tolerance_deg": 18.0,
+    "component_filter": {
+        "min_area": 1500,
+        "max_area": 0,
+        "angle_bin_deg": 5.0,
+        "max_angle_span_deg": 0.0,
     },
-    "morphology": {
-        "use_close": True,
-        "close_kernel": 3,
-        "close_iter": 1,
-        "use_dilate": False,
-        "dilate_kernel": 3,
-        "dilate_iter": 1,
+    "canny": {
+        "threshold1": 70,
+        "threshold2": 170,
+        "aperture_size": 3,
+        "l2_gradient": False,
     },
 }
 
 DEFAULT_RADIAL_PARAMS = {
-    "source_mode": "closed_edges",
+    "source_mode": "tab_edges_clean",
     "use_radius_band": True,
-    # Band bat dau ngay sat trong ban kinh Hough de bat duoc mep tai nam hoi
-    # thut vao than tron, dong thoi van quet het phan tai nho ra ngoai.
-    "inner_radius_scale": 0.99,
-    "outer_radius_scale": 1.34,
-    "use_source_dilate": True,
+    "inner_radius_scale": 1.0,
+    "outer_radius_scale": 1.3,
+    "use_source_dilate": False,
     "source_dilate_kernel": 3,
     "source_dilate_iter": 1,
     "num_angles": 360,
     "ray_step_px": 1.0,
     "ray_thickness": 2,
-    # Cho phep do bias tia hoi ngan hon R (0.9) de khong loai nham mep tai sat than.
-    "min_valid_radius_scale": 0.9,
+    "min_valid_radius_scale": 1.0,
     "floor_to_radius": True,
-    # Tat reject_outliers: dinh tai chinh la cac "outlier" radial sac net, neu loai
-    # se lam mon bien do tai - dac trung chinh de so khop goc. Nhieu da duoc YOLO
-    # khoanh vung + smoothing xu ly. (Xem tinh chinh tren 18 anh test trong AGENTS.)
     "reject_outliers": False,
     "outlier_window": 11,
     "outlier_max_delta": 16.0,

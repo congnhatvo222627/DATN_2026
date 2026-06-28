@@ -18,6 +18,8 @@ from .theme import PALETTE
 
 MODE_SINGLE = "Anh don"
 MODE_FOLDER = "Thu muc"
+MODE_BASLER = "Basler camera"
+BASLER_PLACEHOLDER = "Basler camera chua ket noi"
 
 
 FIELD_SPECS = [
@@ -62,6 +64,7 @@ class HoughStepPanel(StepPanelBase):
         self._poll_id = None
         super().__init__(master, app, FIELD_SPECS, self.params)
         self.image_path_var = tk.StringVar(value=str(get_first_image(INPUT_DIR) or ""))
+        self.image_source_label_var = tk.StringVar(value="Anh khay")
         self.status_var = tk.StringVar(value="")
         self.detected_var = tk.StringVar(value="Detected: - / -")
         self.debug_image_var = tk.StringVar()
@@ -77,14 +80,17 @@ class HoughStepPanel(StepPanelBase):
             self.toolbar,
             textvariable=self.input_mode_var,
             state="readonly",
-            width=9,
-            values=[MODE_SINGLE, MODE_FOLDER],
+            width=14,
+            values=[MODE_SINGLE, MODE_FOLDER, MODE_BASLER],
         )
         self.mode_combo.pack(side="left", padx=(2, 8))
         self.mode_combo.bind("<<ComboboxSelected>>", lambda _event: self._on_mode_change())
-        ttk.Label(self.toolbar, text="Anh khay").pack(side="left")
-        ttk.Entry(self.toolbar, textvariable=self.image_path_var, width=30).pack(side="left", padx=6)
-        ttk.Button(self.toolbar, text="Chon anh", command=self.choose_image).pack(side="left", padx=3)
+        self.image_source_label = ttk.Label(self.toolbar, textvariable=self.image_source_label_var)
+        self.image_source_label.pack(side="left")
+        self.image_path_entry = ttk.Entry(self.toolbar, textvariable=self.image_path_var, width=30)
+        self.image_path_entry.pack(side="left", padx=6)
+        self.choose_button = ttk.Button(self.toolbar, text="Chon anh", command=self.choose_image)
+        self.choose_button.pack(side="left", padx=3)
         self.run_button = ttk.Button(self.toolbar, text="▶ Run", command=self.run_step, style="Accent.TButton")
         self.run_button.pack(side="left", padx=3)
         self.prev_button = ttk.Button(self.toolbar, text="< Prev", command=self.prev_image, state="disabled")
@@ -99,11 +105,12 @@ class HoughStepPanel(StepPanelBase):
         self._configure_table_columns()
         self._build_param_actions()
         self._build_overview_table()
+        self._apply_input_mode_ui()
 
     def _build_param_actions(self):
         """Nhom nut thao tac preset nam ngay duoi phan tham so cho de dung."""
         actions = ttk.Frame(self.right_panel, style="Card.TFrame", padding=(8, 7))
-        actions.pack(fill="x", pady=(8, 0))
+        actions.pack(fill="x", pady=(0, 8), before=self.auto_update_row)
         ttk.Button(actions, text="↺ Reset tham so", command=self.reset_params).pack(side="left")
         ttk.Button(actions, text="Load As...", command=self.load_preset_as).pack(side="right", padx=(4, 0))
         ttk.Button(actions, text="Save As...", command=self.save_preset_as).pack(side="right", padx=(4, 0))
@@ -170,12 +177,62 @@ class HoughStepPanel(StepPanelBase):
 
     def _on_mode_change(self):
         """Doi giua che do anh don / thu muc -> reset trang thai duyet."""
+        self.cancel_auto_run()
         self.folder_images = []
         self.folder_index = 0
         self.image_path_var.set("")
         self._clear_overview()
         self._reset_summary_ui()
+        self._apply_input_mode_ui()
         self._update_nav()
+
+    def _apply_input_mode_ui(self):
+        """Cap nhat nhan + trang thai o nhap theo nguon dau vao dang chon."""
+        mode = self.input_mode_var.get()
+        if mode == MODE_FOLDER:
+            self.image_source_label_var.set("Thu muc anh")
+            self.image_path_entry.configure(state="normal")
+            self.choose_button.configure(text="Chon thu muc", state="normal")
+            if self.status_var.get() in ("Basler camera chua ket noi", "Che do Basler chua co ket noi that."):
+                self.status_var.set("")
+            return
+        if mode == MODE_BASLER:
+            self.image_source_label_var.set("Basler")
+            self.image_path_var.set(BASLER_PLACEHOLDER)
+            self.image_path_entry.configure(state="readonly")
+            self.choose_button.configure(text="Basler camera", state="disabled")
+            if not self._busy:
+                self.status_var.set("Che do Basler chua co ket noi that.")
+            return
+
+        if self.image_path_var.get() == BASLER_PLACEHOLDER:
+            self.image_path_var.set("")
+        self.image_source_label_var.set("Anh khay")
+        self.image_path_entry.configure(state="normal")
+        self.choose_button.configure(text="Chon anh", state="normal")
+        if self.status_var.get() in ("Basler camera chua ket noi", "Che do Basler chua co ket noi that."):
+            self.status_var.set("")
+
+    def _show_basler_not_connected(self):
+        """Thong bao tam thoi cho che do camera placeholder."""
+        message = "Camera Basler chua duoc ket noi, vui long hay ket noi."
+        self.status_var.set("Basler camera chua ket noi")
+        self._reset_summary_ui()
+        self.log_panel.set_lines(
+            [
+                "Nguon dau vao dang chon: Basler camera.",
+                "Tinh nang ket noi camera that se duoc bo sung sau.",
+                message,
+            ]
+        )
+        messagebox.showwarning("Basler camera", message)
+
+    def _on_params_changed(self):
+        """Khong auto-run placeholder Basler de tranh popup canh bao lap lai."""
+        if self.input_mode_var.get() == MODE_BASLER:
+            self.cancel_auto_run()
+            return
+        super()._on_params_changed()
 
     def _load_folder(self, folder):
         """Nap danh sach anh trong thu muc, chua chay."""
@@ -281,6 +338,8 @@ class HoughStepPanel(StepPanelBase):
         self.log_panel.set_lines(result.get("logs", []))
 
     def choose_image(self):
+        if self.input_mode_var.get() == MODE_BASLER:
+            return
         if self.input_mode_var.get() == MODE_FOLDER:
             folder = filedialog.askdirectory(title="Chon thu muc anh", initialdir=str(INPUT_DIR))
             if folder:
@@ -338,6 +397,9 @@ class HoughStepPanel(StepPanelBase):
 
     def run_step(self):
         self.params = self.parameter_panel.get_data()
+        if self.input_mode_var.get() == MODE_BASLER:
+            self._show_basler_not_connected()
+            return
         if self.input_mode_var.get() == MODE_FOLDER:
             if not self.folder_images:
                 messagebox.showwarning("Thieu thu muc", "Hay chon thu muc anh truoc.")

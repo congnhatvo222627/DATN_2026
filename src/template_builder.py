@@ -6,7 +6,7 @@ from pathlib import Path
 
 from .io_utils import read_image, write_image
 from .tab_edge_filter import filter_tab_edges
-from .radial_signature import build_radial_signature, draw_radial_rays, plot_signature_image
+from .radial_signature import build_radial_debug_views, build_radial_signature, plot_signature_image
 
 
 def _pick_edge_image(images, source_mode):
@@ -25,21 +25,27 @@ def build_template_from_roi(roi, center, radius, tab_edge_params, radial_params)
     source_mode = str(radial_params.get("source_mode", "closed_edges"))
     source_image = _pick_edge_image(tab_result["images"], source_mode)
     radial_result = build_radial_signature(source_image, center, radial_params, radius=radius)
+    radial_debug_views = build_radial_debug_views(
+        roi,
+        center,
+        radial_result["data"]["signature_raw"],
+        radius=radius,
+        params=radial_params,
+        measured_mask=radial_result["data"]["measured_mask"],
+        source_images={
+            "tab_edges_clean": tab_result["images"].get("tab_edges_clean"),
+            "closed_edges": tab_result["images"].get("closed_edges"),
+            "radial_source": radial_result["data"]["radial_source"],
+        },
+    )
     if not radial_result["success"]:
         return {
             "success": False,
             "data": {},
             "images": {
                 **tab_result["images"],
-                "radial_source": radial_result["data"]["radial_source"],
                 "radius_band": radial_result["data"]["radius_band"],
-                "radial_rays": draw_radial_rays(
-                    roi,
-                    center,
-                    radial_result["data"]["signature_raw"],
-                    radius=radius,
-                    measured_mask=radial_result["data"]["measured_mask"],
-                ),
+                **radial_debug_views,
                 "signature_plot": plot_signature_image(radial_result["data"]["signature_raw"], radial_result["data"]["signature_norm"]),
             },
             "logs": tab_result["logs"] + radial_result["logs"],
@@ -54,16 +60,9 @@ def build_template_from_roi(roi, center, radius, tab_edge_params, radial_params)
         "note": "0 degree template",
     }
     images = {
-        "radial_rays": draw_radial_rays(
-            roi,
-            center,
-            radial_result["data"]["signature_raw"],
-            radius=radius,
-            measured_mask=radial_result["data"]["measured_mask"],
-        ),
-        "radial_source": radial_result["data"]["radial_source"],
-        "radius_band": radial_result["data"]["radius_band"],
         **tab_result["images"],
+        "radius_band": radial_result["data"]["radius_band"],
+        **radial_debug_views,
         "signature_plot": plot_signature_image(radial_result["data"]["signature_raw"], radial_result["data"]["signature_norm"]),
         "template_roi": roi.copy(),
     }
@@ -81,7 +80,7 @@ def save_template_data(path, template_data):
 
 def load_template_data(path):
     """Load template JSON."""
-    with Path(path).open("r", encoding="utf-8") as handle:
+    with Path(path).open("r", encoding="utf-8-sig") as handle:
         return json.load(handle)
 
 
