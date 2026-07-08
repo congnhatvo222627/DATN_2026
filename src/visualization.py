@@ -214,6 +214,7 @@ def draw_circles(image, circles, color=(0, 255, 0), draw_ids=True, adaptive_styl
 def draw_roi_boxes(image, roi_items):
     """Draw ROI boxes on an image."""
     output = image.copy()
+    box_color = (0, 255, 0)
     for item in roi_items:
         x1 = int(item["offset_x"])
         y1 = int(item["offset_y"])
@@ -221,15 +222,16 @@ def draw_roi_boxes(image, roi_items):
         crop_height = int(round(float(item.get("crop_height", item["roi"].shape[0]))))
         x2 = x1 + crop_width
         y2 = y1 + crop_height
-        cv2.rectangle(output, (x1, y1), (x2, y2), (255, 0, 0), 2)
+        cv2.rectangle(output, (x1, y1), (x2, y2), box_color, 2, cv2.LINE_AA)
         cv2.putText(
             output,
             "ID{:02d}".format(item["id"]),
             (x1, max(20, y1 - 6)),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.55,
-            (255, 0, 0),
+            box_color,
             2,
+            cv2.LINE_AA,
         )
     return output
 

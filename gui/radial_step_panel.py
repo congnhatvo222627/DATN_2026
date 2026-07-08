@@ -12,14 +12,28 @@ from .preset_dialogs import ask_load_preset_path, ask_save_preset_path
 
 
 FIELD_SPECS = [
-    {"path": "source_mode", "label": "source_mode", "type": "str", "group": "Source"},
-    {"path": "use_radius_band", "label": "use_radius_band", "type": "bool", "group": "Source"},
+    {
+        "path": "source_mode",
+        "label": "source_mode",
+        "type": "str",
+        "group": "Source",
+        "group_note": "Buoc 6: chon anh dau vao va vung ban kinh se duoc dung de quet radial.",
+    },
+    {"path": "use_radius_band", "label": "use_radius_band (radial)", "type": "bool", "group": "Source"},
     {"path": "inner_radius_scale", "label": "inner_radius_scale", "type": "float", "group": "Source", "min": 0.8, "max": 1.5},
     {"path": "outer_radius_scale", "label": "outer_radius_scale", "type": "float", "group": "Source", "min": 1.0, "max": 2.0},
     {"path": "use_source_dilate", "label": "use_source_dilate", "type": "bool", "group": "Source"},
     {"path": "source_dilate_kernel", "label": "source_dilate_kernel", "type": "int", "group": "Source", "min": 1, "max": 9},
     {"path": "source_dilate_iter", "label": "source_dilate_iter", "type": "int", "group": "Source", "min": 0, "max": 4},
-    {"path": "num_angles", "label": "num_angles", "type": "int", "group": "Radial", "min": 36, "max": 1440},
+    {
+        "path": "num_angles",
+        "label": "num_angles",
+        "type": "int",
+        "group": "Radial",
+        "min": 36,
+        "max": 1440,
+        "group_note": "Buoc 7: quy dinh cach quet tia va cach lam sach profile radial sau khi do.",
+    },
     {"path": "ray_step_px", "label": "ray_step_px", "type": "float", "group": "Radial", "min": 0.5, "max": 5.0},
     {"path": "ray_thickness", "label": "ray_thickness", "type": "int", "group": "Radial", "min": 0, "max": 6},
     {"path": "min_valid_radius_scale", "label": "min_valid_radius_scale", "type": "float", "group": "Radial", "min": 0.9, "max": 1.2},
@@ -31,7 +45,13 @@ FIELD_SPECS = [
     {"path": "max_gap_to_interpolate", "label": "max_gap_to_interpolate", "type": "int", "group": "Radial", "min": 0, "max": 90},
     {"path": "smooth_signature", "label": "smooth_signature", "type": "bool", "group": "Radial"},
     {"path": "smooth_window", "label": "smooth_window", "type": "int", "group": "Radial", "min": 1, "max": 51},
-    {"path": "scale_normalize", "label": "scale_normalize (rho/R)", "type": "bool", "group": "Match"},
+    {
+        "path": "scale_normalize",
+        "label": "scale_normalize (rho/R)",
+        "type": "bool",
+        "group": "Match",
+        "group_note": "Buoc 8: chuan hoa profile de so khop va chon quy uoc chieu goc dau ra.",
+    },
     {"path": "invert_angle", "label": "invert_angle", "type": "bool", "group": "Match"},
 ]
 

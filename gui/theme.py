@@ -160,6 +160,7 @@ def apply_theme(root):
     # The noi dung mau trang
     style.configure("Card.TFrame", background=p["surface"], relief="flat")
     style.configure("Surface.TLabel", background=p["surface"], foreground=p["text"])
+    style.configure("Hint.TLabel", background=p["surface"], foreground=p["muted"], font=FONTS["small"])
     style.configure("Muted.TLabel", background=p["bg"], foreground=p["muted"])
     style.configure("Section.TLabel", background=p["bg"], foreground=p["text"], font=FONTS["section"])
     style.configure("Metric.TLabel", background=p["bg"], foreground=p["muted"], font=FONTS["metric"])

@@ -18,13 +18,13 @@ from .preset_dialogs import ask_load_preset_path, ask_save_preset_path
 FIELD_SPECS = [
     {"path": "half_size_scale", "label": "half_size_scale", "type": "float", "group": "ROI", "min": 0.8, "max": 2.8},
     {"path": "output_size", "label": "output_size", "type": "int", "group": "ROI", "min": 0, "max": 1024},
-    {"path": "refine.enabled", "label": "Enable refine", "type": "bool", "group": "Hough Refine"},
-    {"path": "refine.least_squares.enabled", "label": "Use least-squares", "type": "bool", "group": "Hough Refine"},
     {"path": "refine.preprocess.use_clahe", "label": "Use CLAHE", "type": "bool", "group": "Preprocess"},
     {"path": "refine.preprocess.clahe_clip_limit", "label": "CLAHE clip", "type": "float", "group": "Preprocess", "min": 0.1, "max": 10.0},
     {"path": "refine.preprocess.clahe_tile_grid_size", "label": "CLAHE tile", "type": "int", "group": "Preprocess", "min": 1, "max": 32},
     {"path": "refine.preprocess.use_gaussian", "label": "Use Gaussian", "type": "bool", "group": "Preprocess"},
     {"path": "refine.preprocess.gaussian_kernel", "label": "Gaussian kernel", "type": "int", "group": "Preprocess", "min": 1, "max": 31},
+    {"path": "refine.enabled", "label": "Enable refine", "type": "bool", "group": "Hough Refine"},
+    {"path": "refine.least_squares.enabled", "label": "Use least-squares", "type": "bool", "group": "Hough Refine"},
     {"path": "refine.canny.threshold1", "label": "canny_threshold1", "type": "int", "group": "Canny", "min": 0, "max": 500},
     {"path": "refine.canny.threshold2", "label": "canny_threshold2", "type": "int", "group": "Canny", "min": 0, "max": 500},
     {"path": "refine.hough.dp", "label": "Hough dp", "type": "float", "group": "Hough Refine", "min": 1.0, "max": 3.0},
@@ -143,6 +143,8 @@ class RoiStepPanel(StepPanelBase):
         image_key = self._display_to_image_key.get(display_name)
         if image_key in self.current_images:
             self.image_viewer.set_image(self.current_images[image_key])
+        if self.current_result and self.current_result.get("success"):
+            self._apply_summary(self.current_result)
         self._show_current_image_path(image_key)
 
     def set_result(self, result):
@@ -475,14 +477,28 @@ class RoiStepPanel(StepPanelBase):
             self._start_worker(pending)
 
     def _apply_summary(self, result):
-        selected = self._find_selected_roi_item(result)
-        refined_items = []
-        if selected is not None:
-            effective_item = self.app.shared.get("roi_effective_items", {}).get(selected["id"])
-            if effective_item is None:
-                effective_item = result.get("data", {}).get("refined_rois", {}).get(selected["id"])
-            if effective_item is not None:
-                refined_items = [effective_item]
+        if not result or not result.get("success"):
+            self.table.set_rows([])
+            return
+
+        image_key = self._display_to_image_key.get(self.debug_image_var.get())
+        effective_items = list(result.get("data", {}).get("effective_rois", []) or result.get("data", {}).get("rois", []))
+        summary_items = []
+
+        if image_key == "overview":
+            summary_items = sorted(effective_items, key=lambda item: int(item.get("id", 0)))
+        else:
+            selected = self._find_selected_roi_item(result)
+            if selected is not None:
+                effective_item = find_roi_item(effective_items, selected["id"])
+                if effective_item is None:
+                    effective_item = self.app.shared.get("roi_effective_items", {}).get(selected["id"])
+                if effective_item is None:
+                    effective_item = result.get("data", {}).get("refined_rois", {}).get(selected["id"])
+                if effective_item is None:
+                    effective_item = selected
+                summary_items = [effective_item]
+
         rows = [
             (
                 item["id"],
@@ -492,7 +508,7 @@ class RoiStepPanel(StepPanelBase):
                 round(float(item.get("score", item["circle"].get("score", 0.0))), 4),
                 round(float(item.get("support_pct", item["circle"].get("support_pct", 0.0))), 1),
             )
-            for item in refined_items
+            for item in summary_items
         ]
         self.table.set_rows(rows)
 
@@ -510,14 +526,29 @@ class RoiStepPanel(StepPanelBase):
             self._suspend_path_trace = False
         self._entry_shows_display_path = bool(display_only and path)
 
+    @staticmethod
+    def _normalize_path_value(path):
+        value = str(path or "").strip()
+        if not value:
+            return ""
+        try:
+            return str(Path(value))
+        except Exception:
+            return value
+
     def _get_request_image_path(self):
         entry_path = self.image_path_var.get().strip()
         if not self._entry_shows_display_path and entry_path:
             self._source_image_path = entry_path
             return entry_path
+        shared_path = self._normalize_path_value(self.app.shared.get("image_path", ""))
+        source_path = self._normalize_path_value(self._source_image_path)
+        # Neu o nhap dang rong hoac chi hien duong dan debug/ROI, uu tien anh moi nhat tu tab Hough.
+        if shared_path and (self._entry_shows_display_path or not source_path or shared_path != source_path):
+            self._source_image_path = shared_path
+            return shared_path
         if self._source_image_path:
             return self._source_image_path
-        shared_path = self.app.shared.get("image_path", "")
         if shared_path:
             self._source_image_path = shared_path
         return shared_path

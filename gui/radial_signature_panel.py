@@ -1,4 +1,4 @@
-"""Combined GUI panel for steps 3 and 4: Tab Edges + Radial Signature."""
+"""Combined GUI panel for step 3: Tab Edges + Radial Signature."""
 
 import copy
 import tkinter as tk
@@ -9,12 +9,14 @@ from src.config import (
     DEFAULT_ROI_PARAMS,
     DEFAULT_TAB_EDGE_PARAMS,
     INPUT_DIR,
+    RADIAL_PRESET_PATH,
     RADIAL_SIGNATURE_PRESET_PATH,
     ROI_PRESET_PATH,
+    TAB_EDGE_PRESET_PATH,
 )
 from src.io_utils import read_image
 from src.pipeline_runner import run_step_radial, run_step_roi_refine, run_step_tab_edges
-from src.preset_store import load_preset, load_radial_signature_preset, save_radial_signature_preset
+from src.preset_store import load_preset, load_radial_signature_preset, save_preset, save_radial_signature_preset
 from src.roi_extractor import find_roi_item
 
 from .common_widgets import StepPanelBase, get_nested, set_nested
@@ -39,22 +41,15 @@ FIELD_SPECS = (
 TAB_EDGE_PATHS = [spec["path"] for spec in TAB_EDGE_FIELD_SPECS]
 RADIAL_PATHS = [spec["path"] for spec in RADIAL_FIELD_SPECS]
 DEBUG_IMAGE_PRIORITY = [
-    "radial_rays",
-    "tab_edges_clean",
-    "closed_edges",
-    "radial_source",
-    "debug_overlay",
-    "signature_plot",
-    "tab_mask",
-    "binary_ring",
-    "binary_otsu",
-    "radius_band",
-    "canny_edges",
-    "tab_edges_raw",
-    "roi_preprocessed",
-    "roi_gray",
-    "radius_mask",
-    "radial_source_raw",
+    (("radial_rays",), "8. Tia radial tren ROI"),
+    (("radial_source_raw", "radial_source"), "7. Anh nguon dua vao radial"),
+    (("tab_edges_clean_raw", "tab_edges_clean"), "6. Edge sau loc"),
+    (("debug_overlay",), "5. Overlay giai thich vung loc"),
+    (("area_filtered_mask", "selected_mask", "pass_mask", "tab_mask"), "4. Mask sau loc dien tich"),
+    (("binary_ring",), "3. Nhi phan trong vung ban kinh"),
+    (("binary_otsu",), "2. Nhi phan sau threshold"),
+    (("roi_preprocessed",), "1. ROI sau tien xu ly"),
+    (("roi_original", "roi_gray"), "0. ROI goc"),
 ]
 
 
@@ -62,9 +57,8 @@ class RadialSignaturePanel(StepPanelBase):
     """One panel that lets the user tune tab-edge filtering and radial signature together."""
 
     def __init__(self, master, app):
-        preset_bundle = load_radial_signature_preset(RADIAL_SIGNATURE_PRESET_PATH)
-        self.tab_edge_params = preset_bundle["tab_edge_params"]
-        self.radial_params = preset_bundle["radial_params"]
+        self.tab_edge_params = copy.deepcopy(DEFAULT_TAB_EDGE_PARAMS)
+        self.radial_params = copy.deepcopy(DEFAULT_RADIAL_PARAMS)
         self.roi_id_var = tk.StringVar()
         self.roi_path_var = tk.StringVar()
         super().__init__(master, app, FIELD_SPECS, self._combine_panel_data())
@@ -96,8 +90,8 @@ class RadialSignaturePanel(StepPanelBase):
         return combined
 
     def _split_panel_data(self, panel_data):
-        tab_edge_params = {}
-        radial_params = {}
+        tab_edge_params = copy.deepcopy(self.tab_edge_params)
+        radial_params = copy.deepcopy(self.radial_params)
         for path in TAB_EDGE_PATHS:
             set_nested(tab_edge_params, path, copy.deepcopy(get_nested(panel_data, path)))
         for path in RADIAL_PATHS:
@@ -130,6 +124,8 @@ class RadialSignaturePanel(StepPanelBase):
         save_radial_signature_preset(
             RADIAL_SIGNATURE_PRESET_PATH, self.tab_edge_params, self.radial_params
         )
+        save_preset(TAB_EDGE_PRESET_PATH, self.tab_edge_params)
+        save_preset(RADIAL_PRESET_PATH, self.radial_params)
         messagebox.showinfo("Preset", "Da luu radial_signature_preset.json")
 
     def load_preset_file(self):
@@ -225,17 +221,20 @@ class RadialSignaturePanel(StepPanelBase):
         if radial_result and radial_result.get("success"):
             self.app.shared.setdefault("radial_results", {})[roi_item["id"]] = radial_result
 
-    @staticmethod
-    def _sort_image_keys(keys):
-        """Dat cac anh debug chinh len dau, phan con lai giu thu tu on dinh."""
-        priority_map = {name: index for index, name in enumerate(DEBUG_IMAGE_PRIORITY)}
-        return sorted(keys, key=lambda name: (priority_map.get(name, len(DEBUG_IMAGE_PRIORITY)), name))
-
     def _order_result_images(self, images):
-        """Sap xep lai dict anh debug de combobox hien thi theo muc uu tien."""
+        """Rut gon va sap xep anh debug theo dung thu tu pipeline, tu cuoi ve dau."""
         ordered = {}
-        for key in self._sort_image_keys(images.keys()):
-            ordered[key] = images[key]
+        for source_names, label in DEBUG_IMAGE_PRIORITY:
+            for source_name in source_names:
+                image = images.get(source_name)
+                if image is None:
+                    continue
+                ordered[label] = image
+                break
+        if ordered:
+            return ordered
+        for key, image in images.items():
+            ordered[key] = image
         return ordered
 
     def run_step(self):

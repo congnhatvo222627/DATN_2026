@@ -163,6 +163,15 @@ class ParameterPanel(ttk.Frame):
             if group_name not in self._groups:
                 frame = ttk.LabelFrame(self, text=group_name)
                 frame.pack(fill="x", padx=4, pady=4)
+                group_note = str(spec.get("group_note", "")).strip()
+                if group_note:
+                    ttk.Label(
+                        frame,
+                        text=group_note,
+                        style="Hint.TLabel",
+                        justify="left",
+                        wraplength=520,
+                    ).pack(fill="x", padx=6, pady=(2, 6))
                 self._groups[group_name] = frame
             container = self._groups[group_name]
             row = ttk.Frame(container, style="Card.TFrame")

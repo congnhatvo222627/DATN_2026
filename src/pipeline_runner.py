@@ -122,7 +122,7 @@ def run_step_radial(roi_item, tab_edges_clean, radial_params):
 
 
 def run_step_template(roi_item, tab_edge_params, radial_params):
-    """Run step 5."""
+    """Run step 4."""
     try:
         return run_template_step(
             roi_item["roi"],
@@ -136,7 +136,7 @@ def run_step_template(roi_item, tab_edge_params, radial_params):
 
 
 def run_step_matching(roi_item, template_data, tab_edge_params, radial_params):
-    """Run step 6."""
+    """Run step 5."""
     try:
         tab_result = run_step_tab_edges(roi_item, tab_edge_params)
         if not tab_result["success"]:

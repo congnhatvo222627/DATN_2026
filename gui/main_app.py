@@ -8,6 +8,7 @@ from src.config import APP_TITLE, LOGO_PATH
 from src.io_utils import ensure_project_dirs
 from src.preset_store import ensure_default_presets
 
+from .app_state import AppState
 from .full_pipeline_panel import FullPipelinePanel
 from .hough_step_panel import HoughStepPanel
 from .matching_step_panel import MatchingStepPanel
@@ -17,12 +18,22 @@ from .template_step_panel import TemplateStepPanel
 from .theme import apply_theme
 
 
+PANEL_SPECS = [
+    ("hough_panel", HoughStepPanel, "  1 · Hough  "),
+    ("roi_panel", RoiStepPanel, "  2 · ROI  "),
+    ("radial_signature_panel", RadialSignaturePanel, "  3 · Radial Signature  "),
+    ("template_panel", TemplateStepPanel, "  4 · Template 0°  "),
+    ("matching_panel", MatchingStepPanel, "  5 · Match MSE  "),
+    ("full_pipeline_panel", FullPipelinePanel, "  6 · Full Pipeline  "),
+]
+
+
 class StatorVisionApp:
-    """Tkinter app that hosts all 7 pipeline step panels."""
+    """Tkinter app that hosts all 6 pipeline step panels."""
 
     def __init__(self, root):
         self.root = root
-        self.shared = {}
+        self.shared = AppState()
         ensure_project_dirs()
         ensure_default_presets()
 
@@ -40,24 +51,19 @@ class StatorVisionApp:
         body = ttk.Frame(root, padding=(10, 8, 10, 10))
         body.pack(fill="both", expand=True)
 
-        notebook = ttk.Notebook(body)
-        notebook.pack(fill="both", expand=True)
+        self.notebook = ttk.Notebook(body)
+        self.notebook.pack(fill="both", expand=True)
 
-        self.hough_panel = HoughStepPanel(notebook, self)
-        self.roi_panel = RoiStepPanel(notebook, self)
-        self.radial_signature_panel = RadialSignaturePanel(notebook, self)
+        self._build_panels()
         self.tab_edge_panel = self.radial_signature_panel
         self.radial_panel = self.radial_signature_panel
-        self.template_panel = TemplateStepPanel(notebook, self)
-        self.matching_panel = MatchingStepPanel(notebook, self)
-        self.full_pipeline_panel = FullPipelinePanel(notebook, self)
 
-        notebook.add(self.hough_panel, text="  1 · Hough  ")
-        notebook.add(self.roi_panel, text="  2 · ROI  ")
-        notebook.add(self.radial_signature_panel, text="  3-4 · Radial Signature  ")
-        notebook.add(self.template_panel, text="  5 · Template 0°  ")
-        notebook.add(self.matching_panel, text="  6 · Match MSE  ")
-        notebook.add(self.full_pipeline_panel, text="  7 · Full Pipeline  ")
+    def _build_panels(self):
+        """Create notebook tabs in one place to keep wiring easy to maintain."""
+        for attr_name, panel_cls, tab_title in PANEL_SPECS:
+            panel = panel_cls(self.notebook, self)
+            setattr(self, attr_name, panel)
+            self.notebook.add(panel, text=tab_title)
 
     def _set_app_icon(self, root):
         """Dat logo Bach Khoa lam icon cua so (thay icon chiec la mac dinh)."""

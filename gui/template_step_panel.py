@@ -1,4 +1,4 @@
-"""GUI panel for step 5: template creation."""
+"""GUI panel for step 4: template creation."""
 
 import copy
 from pathlib import Path
@@ -21,19 +21,37 @@ from src.roi_extractor import build_roi_item_from_image
 from src.template_builder import save_template_bundle
 from src.visualization import draw_center_axes_overlay
 
-from .common_widgets import StepPanelBase
+from .common_widgets import StepPanelBase, get_nested, set_nested
 from .preset_dialogs import ask_save_image_path, ask_save_json_path
+from .radial_signature_panel import (
+    DEBUG_IMAGE_PRIORITY as RADIAL_DEBUG_IMAGE_PRIORITY,
+    FIELD_SPECS as RADIAL_SIGNATURE_FIELD_SPECS,
+    RADIAL_PATHS,
+    TAB_EDGE_PATHS,
+)
+
+
+TEMPLATE_DEBUG_IMAGE_PRIORITY = list(RADIAL_DEBUG_IMAGE_PRIORITY) + [
+    (("template_roi",), "Template ROI"),
+    (("roi_with_axes",), "ROI voi truc tam"),
+    (("radius_band",), "Radius band (radial)"),
+    (("signature_plot",), "Bieu do radial signature"),
+]
 
 
 class TemplateStepPanel(StepPanelBase):
     """Panel for creating template_data.json from a detected stator ID or an external ROI."""
 
     def __init__(self, master, app):
-        super().__init__(master, app, [], {})
+        preset_bundle = load_radial_signature_preset()
+        self.tab_edge_params = copy.deepcopy(preset_bundle["tab_edge_params"])
+        self.radial_params = copy.deepcopy(preset_bundle["radial_params"])
+        super().__init__(master, app, RADIAL_SIGNATURE_FIELD_SPECS, self._combine_panel_data())
         self.roi_path_var = tk.StringVar()
         self.roi_id_var = tk.StringVar()
         self.rotation_angle_var = tk.StringVar(value="0.00")
         self.rotation_step_var = tk.StringVar(value="1.00")
+        self.use_local_params_var = tk.BooleanVar(value=False)
         self._rotation_sync_guard = False
         self._rotation_preview_job = None
         ttk.Label(self.toolbar, text="Stator ID").pack(side="left")
@@ -48,15 +66,17 @@ class TemplateStepPanel(StepPanelBase):
         ttk.Button(self.toolbar, text="Save Image...", command=self.save_current_debug_image).pack(side="left", padx=3)
         self.latest_result = None
         self.latest_roi_item = None
-        self.parameter_panel.pack_forget()
         self.log_label.pack_forget()
         self.log_panel.pack_forget()
         self._build_rotation_controls()
+        self._build_param_override_toggle()
+        self._apply_param_source_mode()
         self.refresh_ids()
 
     def _build_rotation_controls(self):
         rotation_box = ttk.LabelFrame(self.right_panel, text="Dieu khien xoay ROI", padding=(10, 10))
-        rotation_box.pack(fill="x", pady=(8, 0))
+        rotation_box.pack(fill="x", pady=(0, 8), after=self.auto_update_row, before=self.parameter_panel)
+        self.rotation_box = rotation_box
 
         angle_row = ttk.Frame(rotation_box)
         angle_row.pack(fill="x")
@@ -87,6 +107,86 @@ class TemplateStepPanel(StepPanelBase):
 
         ttk.Button(step_row, text="<-", command=lambda: self._nudge_rotation(-1.0)).pack(side="left", padx=(8, 2))
         ttk.Button(step_row, text="->", command=lambda: self._nudge_rotation(1.0)).pack(side="left", padx=2)
+
+    def _build_param_override_toggle(self):
+        toggle_row = ttk.Frame(self.right_panel, style="Card.TFrame", padding=(10, 7))
+        toggle_row.pack(fill="x", pady=(0, 8), after=self.rotation_box, before=self.parameter_panel)
+        self.param_override_row = toggle_row
+        ttk.Checkbutton(
+            toggle_row,
+            text="Chinh tham so",
+            variable=self.use_local_params_var,
+            command=self._on_toggle_local_params,
+        ).pack(side="left")
+
+    def _combine_panel_data(self):
+        combined = copy.deepcopy(self.tab_edge_params)
+        for path in RADIAL_PATHS:
+            set_nested(combined, path, copy.deepcopy(get_nested(self.radial_params, path)))
+        return combined
+
+    def _split_panel_data(self, panel_data):
+        tab_edge_params = {}
+        radial_params = {}
+        for path in TAB_EDGE_PATHS:
+            set_nested(tab_edge_params, path, copy.deepcopy(get_nested(panel_data, path)))
+        for path in RADIAL_PATHS:
+            set_nested(radial_params, path, copy.deepcopy(get_nested(panel_data, path)))
+        return tab_edge_params, radial_params
+
+    def _capture_params(self):
+        panel_data = self.parameter_panel.get_data()
+        self.tab_edge_params, self.radial_params = self._split_panel_data(panel_data)
+
+    def _current_shared_params(self):
+        preset_bundle = load_radial_signature_preset()
+        return (
+            copy.deepcopy(self.app.shared.get("tab_edge_params") or preset_bundle["tab_edge_params"]),
+            copy.deepcopy(self.app.shared.get("radial_params") or preset_bundle["radial_params"]),
+        )
+
+    def _sync_local_params_from_shared(self):
+        self.tab_edge_params, self.radial_params = self._current_shared_params()
+        self.parameter_panel.set_data(self._combine_panel_data())
+
+    def _apply_param_source_mode(self):
+        if self.use_local_params_var.get():
+            self._sync_local_params_from_shared()
+            if not self.parameter_panel.winfo_manager():
+                self.parameter_panel.pack(fill="x", expand=False, after=self.param_override_row)
+            return
+        self.cancel_auto_run()
+        if self.parameter_panel.winfo_manager():
+            self.parameter_panel.pack_forget()
+
+    def _on_toggle_local_params(self):
+        self._apply_param_source_mode()
+        if self.auto_update_var.get():
+            self.schedule_auto_run(self.run_step)
+
+    def _resolve_template_params(self):
+        if self.use_local_params_var.get():
+            self._capture_params()
+            return copy.deepcopy(self.tab_edge_params), copy.deepcopy(self.radial_params)
+        return self._current_shared_params()
+
+    @staticmethod
+    def _order_result_images(images):
+        ordered = {}
+        used_source_names = set()
+        for source_names, label in TEMPLATE_DEBUG_IMAGE_PRIORITY:
+            for source_name in source_names:
+                image = images.get(source_name)
+                if image is None:
+                    continue
+                ordered[label] = image
+                used_source_names.add(source_name)
+                break
+        for key, image in images.items():
+            if image is None or key in used_source_names:
+                continue
+            ordered[key] = image
+        return ordered
 
     def refresh_ids(self):
         """Populate the stator ID combobox from the ROI step result."""
@@ -259,15 +359,14 @@ class TemplateStepPanel(StepPanelBase):
         except Exception as exc:
             messagebox.showwarning("Template", str(exc))
             return
-        preset_bundle = load_radial_signature_preset()
-        tab_params = self.app.shared.get("tab_edge_params") or preset_bundle["tab_edge_params"]
-        radial_params = self.app.shared.get("radial_params") or preset_bundle["radial_params"]
-        result = run_step_template(roi_item, tab_params, radial_params)
+        tab_edge_params, radial_params = self._resolve_template_params()
+        result = run_step_template(roi_item, tab_edge_params, radial_params)
         roi_logs = roi_item.get("logs") or []
         if roi_logs:
             result["logs"] = list(roi_logs) + list(result.get("logs", []))
         result.setdefault("images", {})
         result["images"]["roi_with_axes"] = draw_center_axes_overlay(roi_item["roi"])
+        result["images"] = self._order_result_images(result.get("images", {}))
         self.latest_result = result
         self.latest_roi_item = roi_item
         if result["success"]:
@@ -277,7 +376,7 @@ class TemplateStepPanel(StepPanelBase):
             result["data"]["radius_full"] = float(roi_item.get("radius_full", roi_item.get("radius", 0.0)))
             result["data"]["rotation_deg"] = self._current_rotation_angle()
             self.app.shared["template_data"] = result["data"]
-            self.app.shared["template_roi_image"] = result["images"].get("template_roi")
+            self.app.shared["template_roi_image"] = result["images"].get("Template ROI")
         self.set_result(result)
 
     def _ensure_template_ready(self):
@@ -285,7 +384,7 @@ class TemplateStepPanel(StepPanelBase):
         if not self.latest_result or not self.latest_result["success"]:
             messagebox.showwarning("Template", "Hay run template truoc.")
             return None, None
-        return self.latest_result["data"], self.latest_result["images"].get("template_roi")
+        return self.latest_result["data"], self.latest_result["images"].get("Template ROI")
 
     def save_template(self):
         template_data, template_roi = self._ensure_template_ready()

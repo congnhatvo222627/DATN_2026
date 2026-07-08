@@ -1,8 +1,8 @@
-"""GUI panel for step 7: full tray pipeline.
+"""GUI panel for step 6: full tray pipeline.
 
-Nhap anh toan khay + template mau, chuong trinh tu chay luong tab 1 -> tab 6 (coarse
+Nhap anh toan khay + template mau, chuong trinh tu chay luong tab 1 -> tab 5 (coarse
 Hough -> ROI -> Hough refine -> tab edge -> radial -> MSE) o thread nen va tra ve bang
-ket qua giong tab 6. Tham so lay tu cac preset da luu o tab truoc.
+ket qua giong tab 5. Tham so lay tu cac preset da luu o tab truoc.
 """
 
 import queue

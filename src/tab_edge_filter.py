@@ -18,7 +18,7 @@ def preprocess_roi_for_tab_edges_local(roi, params):
     output = gray.copy()
     logs = ["ROI gray ready"]
     preprocess_cfg = params.get("preprocess", {})
-    images = {"roi_gray": gray}
+    images = {"roi_original": roi.copy(), "roi_gray": gray}
 
     if preprocess_cfg.get("use_clahe", False):
         output = apply_clahe(
@@ -28,10 +28,13 @@ def preprocess_roi_for_tab_edges_local(roi, params):
         )
         logs.append("CLAHE enabled")
 
-    kernel = _make_odd(preprocess_cfg.get("gaussian_kernel", 5), minimum=1)
-    sigma = max(0.0, float(preprocess_cfg.get("gaussian_sigma", 1.0)))
-    output = cv2.GaussianBlur(output, (kernel, kernel), sigma)
-    logs.append("Gaussian blur k={} sigma={:.2f}".format(kernel, sigma))
+    if preprocess_cfg.get("use_gaussian", True):
+        kernel = _make_odd(preprocess_cfg.get("gaussian_kernel", 5), minimum=1)
+        sigma = max(0.0, float(preprocess_cfg.get("gaussian_sigma", 1.0)))
+        output = cv2.GaussianBlur(output, (kernel, kernel), sigma)
+        logs.append("Gaussian blur k={} sigma={:.2f}".format(kernel, sigma))
+    else:
+        logs.append("Gaussian blur TAT")
     images["roi_preprocessed"] = output
     return {"success": True, "data": output, "images": images, "logs": logs}
 
@@ -77,40 +80,25 @@ def apply_radius_filter(binary_image, radius_mask):
     return cv2.bitwise_and(binary_image, radius_mask)
 
 
-def _component_angle_span_deg(component_mask, center, bin_size_deg):
-    """Estimate how many degrees one connected component occupies."""
-    ys, xs = np.where(component_mask)
-    if len(xs) == 0:
-        return 0.0
-    bin_size_deg = max(0.5, float(bin_size_deg))
-    angles = (np.degrees(np.arctan2(ys - float(center[1]), xs - float(center[0]))) + 360.0) % 360.0
-    bins = np.unique(np.floor(angles / bin_size_deg).astype(np.int32))
-    return float(len(bins)) * bin_size_deg
-
-
 def keep_tab_components(binary_ring, center, params):
-    """Keep only area-valid connected components in the masked threshold image."""
+    """Keep only connected components whose area passes the configured thresholds."""
+    _ = center  # Giu signature hien tai de khong anh huong cac cho goi cu.
     component_cfg = params.get("component_filter", {})
     component_count, labels, stats, _centroids = cv2.connectedComponentsWithStats(binary_ring, connectivity=8)
-    kept_mask = np.zeros_like(binary_ring)
-    kept = []
+    pass_mask = np.zeros_like(binary_ring)
+    component_reports = []
     min_area = max(0, int(round(float(component_cfg.get("min_area", 1500)))))
     max_area = max(0, int(round(float(component_cfg.get("max_area", 30000)))))
-    angle_bin_deg = max(0.5, float(component_cfg.get("angle_bin_deg", 5.0)))
-    max_angle_span_deg = max(0.0, float(component_cfg.get("max_angle_span_deg", 150.0)))
     for label in range(1, component_count):
         area = int(stats[label, cv2.CC_STAT_AREA])
-        if area < min_area:
-            continue
+        keep = area >= min_area
         if max_area > 0 and area > max_area:
-            continue
-        component_mask = labels == label
-        angle_span_deg = _component_angle_span_deg(component_mask, center, angle_bin_deg)
-        if max_angle_span_deg > 0.0 and angle_span_deg > max_angle_span_deg:
-            continue
-        kept_mask[component_mask] = 255
-        kept.append({"area": area, "angle_span_deg": angle_span_deg})
-    return kept_mask, kept
+            keep = False
+        if keep:
+            pass_mask[labels == label] = 255
+        component_reports.append({"area": area, "keep": keep})
+    component_reports.sort(key=lambda item: item["area"], reverse=True)
+    return pass_mask, component_reports
 
 
 def _build_threshold_mask(preprocessed, params):
@@ -140,7 +128,7 @@ def _draw_mask_outline(mask, output, color, thickness=1):
 
 
 def make_tab_edge_debug_overlay(roi, center, radius, tab_mask, tab_edges_clean, params):
-    """Draw the report-style debug overlay with annulus and kept tab regions."""
+    """Draw the debug overlay with the mask currently selected for radial matching."""
     if len(roi.shape) == 2:
         overlay = cv2.cvtColor(roi, cv2.COLOR_GRAY2BGR)
     else:
@@ -167,38 +155,54 @@ def _run_report_tab_edge_pipeline(roi, center, radius, params):
     binary_otsu, threshold_value, threshold_mode = _build_threshold_mask(preprocessed, params)
     radius_mask = build_radius_mask(binary_otsu.shape, center, radius, params)
     binary_ring = apply_radius_filter(binary_otsu, radius_mask)
-    tab_mask, kept_components = keep_tab_components(binary_ring, center, params)
+    pass_mask, component_reports = keep_tab_components(binary_ring, center, params)
+    tab_mask = pass_mask
+    mask_mode = "pass_mask"
     tab_edges_raw = build_canny_edges(binary_ring, params)
+    pass_edges = build_canny_edges(pass_mask, params)
     tab_edges_clean = build_canny_edges(tab_mask, params)
     overlay = make_tab_edge_debug_overlay(roi, center, radius, tab_mask, tab_edges_clean, params)
     point_count = int(np.count_nonzero(tab_edges_clean))
-    kept_area_px = int(np.count_nonzero(tab_mask))
+    selected_area_px = int(np.count_nonzero(tab_mask))
+    pass_area_px = int(np.count_nonzero(pass_mask))
+    kept_component_count = sum(1 for component in component_reports if component["keep"])
+    component_cfg = params.get("component_filter", {})
+    min_area = max(0, int(round(float(component_cfg.get("min_area", 1500)))))
+    max_area = max(0, int(round(float(component_cfg.get("max_area", 30000)))))
 
     logs = ["Tab edge mode: report Otsu + radius + area + Canny"]
     logs.extend(preprocess_result["logs"])
     logs.append("Threshold: {} (value {:.1f})".format(threshold_mode, threshold_value))
+    logs.append("Tab selection mode: {}".format(mask_mode))
     logs.append("Mask vung ban kinh: {} px".format(int(np.count_nonzero(radius_mask))))
     logs.append("Pixel sau threshold + ring mask: {}".format(int(np.count_nonzero(binary_ring))))
-    logs.append("So component giu lai: {}".format(len(kept_components)))
-    logs.append("Tong dien tich tab_mask: {} px".format(kept_area_px))
+    logs.append("So component truoc loc: {}".format(len(component_reports)))
+    logs.append("Nguong dien tich: min_area={} px | max_area={}".format(min_area, max_area if max_area > 0 else "OFF"))
+    logs.append("So component duoc giu: {}".format(kept_component_count))
+    logs.append("Tong dien tich pass_mask: {} px".format(pass_area_px))
+    logs.append("Tong dien tich tab_mask dang dung: {} px".format(selected_area_px))
     logs.append("Edge points edges_tab: {}".format(point_count))
-    for index, component in enumerate(kept_components, start=1):
+    for index, component in enumerate(component_reports, start=1):
         logs.append(
-            "  Component {:02d}: area={} px, span={:.1f} deg".format(
+            "Component {:02d}: area = {} px -> {}".format(
                 index,
                 int(component["area"]),
-                float(component["angle_span_deg"]),
+                "KEEP" if component["keep"] else "REMOVE",
             )
         )
-    if point_count <= 0 or kept_area_px <= 0:
+    if point_count <= 0 or selected_area_px <= 0:
         logs.append("Khong tao duoc edges_tab hop le sau buoc loc dien tich.")
 
     return {
-        "success": point_count > 0 and kept_area_px > 0,
+        "success": point_count > 0 and selected_area_px > 0,
         "data": {
             "point_count": point_count,
-            "component_count": len(kept_components),
-            "kept_area_px": kept_area_px,
+            "component_count": len(component_reports),
+            "kept_component_count": kept_component_count,
+            "selected_area_px": selected_area_px,
+            "kept_area_px": selected_area_px,
+            "pass_area_px": pass_area_px,
+            "mask_mode": mask_mode,
             "threshold_value": threshold_value,
             "threshold_mode": threshold_mode,
         },
@@ -208,10 +212,15 @@ def _run_report_tab_edge_pipeline(roi, center, radius, params):
             "closed_edges": tab_edges_clean,
             "tab_edges_raw": tab_edges_raw,
             "tab_mask": tab_mask,
+            "area_filtered_mask": pass_mask,
+            "selected_mask": tab_mask,
+            "pass_mask": pass_mask,
+            "pass_edges": pass_edges,
             "binary_ring": binary_ring,
             "binary_otsu": binary_otsu,
             "radius_mask": radius_mask,
             "canny_edges": tab_edges_clean,
+            "roi_original": preprocess_result["images"]["roi_original"],
             "roi_preprocessed": preprocess_result["images"]["roi_preprocessed"],
             "roi_gray": preprocess_result["images"]["roi_gray"],
         },

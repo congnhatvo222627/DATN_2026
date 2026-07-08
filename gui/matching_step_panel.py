@@ -1,4 +1,4 @@
-"""GUI panel for step 6: MSE matching by detected stator ID.
+"""GUI panel for step 5: MSE matching by detected stator ID.
 
 Bo cuc: anh ghep mau|test o khung anh chinh (trai-tren), do thi so khop o trai-duoi,
 cot phai la thong tin mau in dam + bang ket qua so khop tich luy. Moi lan Run them

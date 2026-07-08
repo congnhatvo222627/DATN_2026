@@ -2,16 +2,16 @@
   "half_size_scale": 1.35,
   "output_size": 0,
   "refine": {
-    "enabled": true,
+    "enabled": false,
     "least_squares": {
-      "enabled": true
+      "enabled": false
     },
     "preprocess": {
       "use_clahe": true,
-      "clahe_clip_limit": 6.12,
+      "clahe_clip_limit": 3.58,
       "clahe_tile_grid_size": 4,
       "use_gaussian": true,
-      "gaussian_kernel": 13
+      "gaussian_kernel": 11
     },
     "canny": {
       "threshold1": 39,
