@@ -101,6 +101,14 @@ DEFAULT_ROI_PARAMS = {
 }
 
 DEFAULT_TAB_EDGE_PARAMS = {
+    "fit_preprocess": {
+        "use_clahe": False,
+        "clahe_clip_limit": 2.0,
+        "clahe_tile_grid_size": 8,
+        "use_gaussian": True,
+        "gaussian_kernel": 5,
+        "gaussian_sigma": 1.0,
+    },
     "preprocess": {
         "use_clahe": False,
         "clahe_clip_limit": 2.0,
@@ -113,13 +121,22 @@ DEFAULT_TAB_EDGE_PARAMS = {
         "use_otsu": True,
         "manual_value": 0,
         "invert": False,
+        "compute_on_full_roi": False,
     },
     "radius_filter": {
         "enabled": True,
         "r_min_factor": 1.13,
         "r_max_factor": 1.37,
-        "inner_margin_px": 0.0,
-        "outer_margin_px": 0.0,
+        "ellipse_cut_offset_px": 4.0,
+        "fallback_to_circle_on_fit_error": True,
+    },
+    "binary_cleanup": {
+        "enabled": True,
+        "use_median": True,
+        "median_kernel": 3,
+        "use_morph_open": False,
+        "open_kernel": 3,
+        "open_iterations": 1,
     },
     "component_filter": {
         "min_area": 3000,

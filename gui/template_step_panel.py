@@ -32,7 +32,6 @@ from .radial_signature_panel import (
 
 
 TEMPLATE_DEBUG_IMAGE_PRIORITY = list(RADIAL_DEBUG_IMAGE_PRIORITY) + [
-    (("template_roi",), "Template ROI"),
     (("roi_with_axes",), "ROI voi truc tam"),
     (("radius_band",), "Radius band (radial)"),
     (("signature_plot",), "Bieu do radial signature"),
@@ -52,8 +51,10 @@ class TemplateStepPanel(StepPanelBase):
         self.rotation_angle_var = tk.StringVar(value="0.00")
         self.rotation_step_var = tk.StringVar(value="1.00")
         self.use_local_params_var = tk.BooleanVar(value=False)
+        self.show_axes_var = tk.BooleanVar(value=False)
         self._rotation_sync_guard = False
         self._rotation_preview_job = None
+        self._raw_display_images = {}
         ttk.Label(self.toolbar, text="Stator ID").pack(side="left")
         self.roi_combo = ttk.Combobox(self.toolbar, textvariable=self.roi_id_var, state="readonly", width=8)
         self.roi_combo.pack(side="left", padx=(2, 8))
@@ -68,14 +69,26 @@ class TemplateStepPanel(StepPanelBase):
         self.latest_roi_item = None
         self.log_label.pack_forget()
         self.log_panel.pack_forget()
+        self._build_axis_toggle()
         self._build_rotation_controls()
         self._build_param_override_toggle()
         self._apply_param_source_mode()
         self.refresh_ids()
 
+    def _build_axis_toggle(self):
+        axis_row = ttk.Frame(self.right_panel, style="Card.TFrame", padding=(10, 7))
+        axis_row.pack(fill="x", pady=(0, 8), after=self.auto_update_row)
+        self.axis_toggle_row = axis_row
+        ttk.Checkbutton(
+            axis_row,
+            text="Hiển thị trục tọa độ",
+            variable=self.show_axes_var,
+            command=self._on_toggle_axes,
+        ).pack(side="left")
+
     def _build_rotation_controls(self):
         rotation_box = ttk.LabelFrame(self.right_panel, text="Dieu khien xoay ROI", padding=(10, 10))
-        rotation_box.pack(fill="x", pady=(0, 8), after=self.auto_update_row, before=self.parameter_panel)
+        rotation_box.pack(fill="x", pady=(0, 8), after=self.axis_toggle_row, before=self.parameter_panel)
         self.rotation_box = rotation_box
 
         angle_row = ttk.Frame(rotation_box)
@@ -183,10 +196,39 @@ class TemplateStepPanel(StepPanelBase):
                 used_source_names.add(source_name)
                 break
         for key, image in images.items():
-            if image is None or key in used_source_names:
+            if image is None or key in used_source_names or key == "template_roi":
                 continue
             ordered[key] = image
         return ordered
+
+    @staticmethod
+    def _supports_axis_overlay(name):
+        return name not in {
+            "Bieu do radial signature",
+            "Radius band (radial)",
+            "ROI voi truc tam",
+        }
+
+    def _build_display_images(self, raw_images):
+        display_images = {}
+        for name, image in (raw_images or {}).items():
+            if image is None:
+                continue
+            if self.show_axes_var.get() and self._supports_axis_overlay(name):
+                display_images[name] = draw_center_axes_overlay(image)
+            else:
+                display_images[name] = image
+        return display_images
+
+    def _refresh_display_images(self):
+        if self.latest_result is None:
+            return
+        display_result = copy.deepcopy(self.latest_result)
+        display_result["images"] = self._build_display_images(self._raw_display_images)
+        super().set_result(display_result)
+
+    def _on_toggle_axes(self):
+        self._refresh_display_images()
 
     def refresh_ids(self):
         """Populate the stator ID combobox from the ROI step result."""
@@ -376,15 +418,17 @@ class TemplateStepPanel(StepPanelBase):
             result["data"]["radius_full"] = float(roi_item.get("radius_full", roi_item.get("radius", 0.0)))
             result["data"]["rotation_deg"] = self._current_rotation_angle()
             self.app.shared["template_data"] = result["data"]
-            self.app.shared["template_roi_image"] = result["images"].get("Template ROI")
-        self.set_result(result)
+            self.app.shared["template_roi_image"] = roi_item["roi"].copy()
+        self._raw_display_images = copy.deepcopy(result.get("images", {}))
+        self._refresh_display_images()
 
     def _ensure_template_ready(self):
         self._ensure_rotation_result_current()
         if not self.latest_result or not self.latest_result["success"]:
             messagebox.showwarning("Template", "Hay run template truoc.")
             return None, None
-        return self.latest_result["data"], self.latest_result["images"].get("Template ROI")
+        template_roi = self.latest_roi_item["roi"].copy() if self.latest_roi_item is not None else None
+        return self.latest_result["data"], template_roi
 
     def save_template(self):
         template_data, template_roi = self._ensure_template_ready()

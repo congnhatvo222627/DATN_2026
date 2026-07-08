@@ -22,8 +22,8 @@
     "min_center_dist": 480.0
   },
   "filter": {
-    "use_radius_consensus": false,
-    "radius_consensus_tol": 12,
-    "force_common_radius": false
+    "use_radius_consensus": true,
+    "radius_consensus_tol": 24,
+    "force_common_radius": true
   }
 }

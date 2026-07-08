@@ -1,27 +1,44 @@
 {
   "tab_edge_params": {
+    "fit_preprocess": {
+      "use_clahe": false,
+      "clahe_clip_limit": 2.0,
+      "clahe_tile_grid_size": 8,
+      "use_gaussian": true,
+      "gaussian_kernel": 5,
+      "gaussian_sigma": 1.0
+    },
     "preprocess": {
       "use_clahe": true,
-      "clahe_clip_limit": 2.71,
-      "clahe_tile_grid_size": 17,
+      "clahe_clip_limit": 2.0,
+      "clahe_tile_grid_size": 8,
       "use_gaussian": true,
-      "gaussian_kernel": 1,
-      "gaussian_sigma": 2.55
+      "gaussian_kernel": 5,
+      "gaussian_sigma": 1.0
     },
     "threshold": {
       "use_otsu": true,
       "manual_value": 0,
-      "invert": false
+      "invert": false,
+      "compute_on_full_roi": false
     },
     "radius_filter": {
       "enabled": true,
-      "r_min_factor": 1.13,
+      "r_min_factor": 1.07,
       "r_max_factor": 1.37,
-      "inner_margin_px": 0.0,
-      "outer_margin_px": 0.0
+      "ellipse_cut_offset_px": 4.0,
+      "fallback_to_circle_on_fit_error": false
+    },
+    "binary_cleanup": {
+      "enabled": true,
+      "use_median": true,
+      "median_kernel": 4,
+      "use_morph_open": true,
+      "open_kernel": 5,
+      "open_iterations": 3
     },
     "component_filter": {
-      "min_area": 3000,
+      "min_area": 4730,
       "max_area": 0
     },
     "canny": {

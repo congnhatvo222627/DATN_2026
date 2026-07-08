@@ -102,7 +102,7 @@ def _draw_text_with_outline(image, text, org, font_scale, color, thickness):
     )
 
 
-def draw_center_axes_overlay(image, center=None, margin_ratio=0.05):
+def draw_center_axes_overlay(image, center=None, margin_ratio=0.018):
     """Overlay a clean XY axis view centered on the image (or a provided point)."""
     if image is None:
         return None
@@ -122,8 +122,8 @@ def draw_center_axes_overlay(image, center=None, margin_ratio=0.05):
     cx = max(0, min(width - 1, cx))
     cy = max(0, min(height - 1, cy))
 
-    margin_x = max(12, int(round(width * float(margin_ratio))))
-    margin_y = max(12, int(round(height * float(margin_ratio))))
+    margin_x = max(6, int(round(width * float(margin_ratio))))
+    margin_y = max(6, int(round(height * float(margin_ratio))))
     x_left = (margin_x, cy)
     x_right = (max(margin_x, width - margin_x - 1), cy)
     y_top = (cx, margin_y)
@@ -136,10 +136,10 @@ def draw_center_axes_overlay(image, center=None, margin_ratio=0.05):
     text_thickness = max(1, int(round(thickness * 0.8)))
     tip_length = 0.024
 
-    x_color = (0, 186, 255)
-    y_color = (255, 214, 64)
-    neg_x_color = (90, 140, 170)
-    neg_y_color = (120, 150, 95)
+    x_color = (255, 0, 255)
+    y_color = (255, 229, 0)
+    neg_x_color = (170, 70, 170)
+    neg_y_color = (170, 120, 40)
     origin_color = (255, 255, 255)
 
     overlay = base.copy()
@@ -157,8 +157,8 @@ def draw_center_axes_overlay(image, center=None, margin_ratio=0.05):
     cv2.circle(overlay, (cx, cy), outline + 1, (18, 18, 18), -1, cv2.LINE_AA)
     cv2.circle(overlay, (cx, cy), max(3, thickness + 1), origin_color, -1, cv2.LINE_AA)
 
-    x_label_pos = (max(4, x_right[0] - 34), max(20, cy - 10))
-    y_label_pos = (min(width - 26, cx + 10), max(22, y_top[1] + 20))
+    x_label_pos = (max(4, x_right[0] - 40), max(20, cy - 10))
+    y_label_pos = (min(width - 30, cx + 10), max(20, y_top[1] + 20))
     origin_label_pos = (min(width - 28, cx + 8), min(height - 8, cy + 20))
     _draw_text_with_outline(overlay, "+X", x_label_pos, font_scale, x_color, text_thickness)
     _draw_text_with_outline(overlay, "+Y", y_label_pos, font_scale, y_color, text_thickness)
